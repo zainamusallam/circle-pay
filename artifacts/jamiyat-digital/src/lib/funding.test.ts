@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildCircle, statusOf } from './circles';
-import { collectMonth, heldForCircle, initialFunding, simulateBilling } from './funding';
+import { collectMonth, fundingMessage, heldForCircle, initialFunding, jointAccountsForUser, simulateBilling } from './funding';
 
 const stamp = '2026-11-13T10:00:00.000Z';
 const fixture = () => initialFunding([buildCircle({
@@ -18,7 +18,7 @@ test('debits every participant and conserves funds in a fully queued vault', () 
   assert.equal(after.lastRun?.debited, 3);
   assert.equal(after.lastRun?.secured, 1);
   assert.equal(heldForCircle(after.circles[0]), 120.375);
-  assert.equal(statusOf(after.circles[0].schedule[0]), 'Auto-Paid (Escrow Secured)');
+  assert.equal(statusOf(after.circles[0].schedule[0]), 'Auto-Paid (Protected Balance Secured)');
   assert.equal(after.transactions.length, 4);
   assert.equal(after.simulatedDate, '2026-12-01');
   assert.equal(before.wallets[0].balance, 1500);
@@ -87,4 +87,31 @@ test('saved simulation survives JSON roundtrip and shares participant wallets ac
   assert.equal(restored.wallets.find((w: {member: string}) => w.member === 'Ahmed').balance, 1409.875);
   assert.equal(restored.circles[0].schedule[0].funding.queuedAt, stamp);
   assert.equal(total(after), total(before));
+});
+
+test('two circles create two separate joint accounts, not pooled wallet totals', () => {
+  const before = fixture();
+  before.circles.push(buildCircle({ name: 'Second circle', amount: 100, months: 3, startDate: '2026-12-01' }));
+  assert.equal(jointAccountsForUser(before.circles).length, 2);
+  assert.deepEqual(jointAccountsForUser(before.circles).map((a) => a.balance), [0, 0]);
+  const funded = simulateBilling(before, stamp);
+  assert.deepEqual(jointAccountsForUser(funded.circles).map((a) => a.balance), [120.375, 300]);
+  const released = collectMonth(funded, funded.circles[0].id, 1, stamp);
+  assert.deepEqual(jointAccountsForUser(released.circles).map((a) => a.balance), [0, 300]);
+  assert.equal(jointAccountsForUser(released.circles)[0].nextDue?.month, 2);
+});
+
+test('joint accounts follow membership as circles are created or removed', () => {
+  const before = fixture();
+  const second = buildCircle({ name: 'Second', amount: 10, months: 2, startDate: '2026-12-01' });
+  const third = buildCircle({ name: 'Third', amount: 20, months: 2, startDate: '2026-12-01' });
+  const unrelated = buildCircle({ name: 'Not a member', amount: 30, months: 2, startDate: '2026-12-01', members: ['Omar', 'Sara'] });
+  assert.equal(jointAccountsForUser([...before.circles, second, third, unrelated]).length, 3);
+  assert.equal(jointAccountsForUser([third, unrelated]).length, 1);
+  assert.equal(jointAccountsForUser([]).length, 0);
+});
+
+test('previously saved messages use protected balance terminology on display', () => {
+  assert.equal(fundingMessage('Auto-debit deposited into the simulated escrow vault.'), 'Auto-debit deposited into the simulated protected balance.');
+  assert.equal(fundingMessage('Simulated escrow released to recipient wallet.'), 'Simulated protected balance released to recipient wallet.');
 });

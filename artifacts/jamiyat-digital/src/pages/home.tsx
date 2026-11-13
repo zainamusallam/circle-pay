@@ -41,7 +41,7 @@ export default function Home() {
   const nav = [
     { id: 'dashboard' as const, label: 'Dashboard', Icon: LayoutGrid },
     { id: 'circles' as const, label: 'My Circles', Icon: Layers },
-    { id: 'accounts' as const, label: 'Joint Account', Icon: CreditCard },
+    { id: 'accounts' as const, label: 'Joint Accounts', Icon: CreditCard },
   ];
   const toggleAuto = (id: string, enabled: boolean) => {
     api.toggleAutoDebit(id, enabled);

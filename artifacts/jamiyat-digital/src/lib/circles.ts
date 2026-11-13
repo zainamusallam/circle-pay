@@ -24,7 +24,7 @@ export type Circle = {
   autoDebit: boolean;
 };
 
-export type MonthStatus = 'Paid' | 'Pending' | 'Collected' | 'Auto-Paid (Escrow Secured)';
+export type MonthStatus = 'Paid' | 'Pending' | 'Collected' | 'Auto-Paid (Protected Balance Secured)';
 
 export const MEMBER_POOL = [
   'Ahmed', 'Fatima', 'Omar', 'Sara', 'Khalid', 'Noor',
@@ -87,7 +87,7 @@ export function seedCircles(): Circle[] {
   return [fam, office];
 }
 
-export const statusOf = (e: MonthEntry): MonthStatus => (e.collected ? 'Collected' : e.funding?.queuedAt ? 'Auto-Paid (Escrow Secured)' : e.funding ? 'Pending' : e.paid ? 'Paid' : 'Pending');
+export const statusOf = (e: MonthEntry): MonthStatus => (e.collected ? 'Collected' : e.funding?.queuedAt ? 'Auto-Paid (Protected Balance Secured)' : e.funding ? 'Pending' : e.paid ? 'Paid' : 'Pending');
 
 export function circleStats(c: Circle) {
   const paidCount = c.schedule.filter((e) => e.paid).length;

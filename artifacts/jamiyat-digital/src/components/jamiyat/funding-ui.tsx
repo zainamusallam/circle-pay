@@ -2,8 +2,8 @@ import { CalendarClock, Landmark, Lock, PauseCircle, PlayCircle, ShieldAlert, Sh
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { circleStats, displayMember, fmtDate, fmtKWD, statusOf, type Circle, type MonthEntry, type MonthStatus } from '@/lib/circles';
-import { heldForCircle } from '@/lib/funding';
+import { circleGoal, circleStats, displayMember, fmtDate, fmtKWD, statusOf, type Circle, type MonthEntry, type MonthStatus } from '@/lib/circles';
+import { fundingMessage, heldForCircle, jointAccountsForUser } from '@/lib/funding';
 
 /** Automated partial months stay Pending until every receipt is in. */
 export const displayStatus = (e: MonthEntry): MonthStatus =>
@@ -46,7 +46,7 @@ export function SimNote({ className }: { className?: string }) {
   return (
     <p className={cn('flex items-start gap-1.5 text-[11px] leading-snug text-muted-foreground', className)}>
       <ShieldAlert className="mt-px h-3.5 w-3.5 shrink-0 text-amber-600" aria-hidden />
-      Simulation only. No real money, no real escrow, no bank connection.
+      Simulation only. Protected balances are mock funds, not real deposits or a bank connection.
     </p>
   );
 }
@@ -58,7 +58,7 @@ export function VaultMeter({ circle, compact }: { circle: Circle; compact?: bool
   return (
     <div className={cn('rounded-xl border border-dashed border-primary/25 bg-accent/40', compact ? 'p-3' : 'p-4')} data-testid={`vault-${circle.id}`}>
       <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="flex items-center gap-1.5 font-semibold text-primary"><Lock className="h-3.5 w-3.5" aria-hidden /> Total escrow held</span>
+        <span className="flex items-center gap-1.5 font-semibold text-primary"><Lock className="h-3.5 w-3.5" aria-hidden /> Protected balance</span>
         <span className="num font-semibold" data-testid={`text-vault-held-${circle.id}`}>{fmtKWD(v.held)}</span>
       </div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background">
@@ -96,72 +96,62 @@ export function AutoDebitToggle({ circle, onToggle }: { circle: Circle; onToggle
 }
 
 export function LinkedAccounts({ api }: { api: CirclesApi }) {
-  const me = api.wallets.find((w) => w.member === 'Ahmed');
-  const jointBalance = api.wallets.reduce((sum, w) => sum + w.balance, 0);
-  const duePayments = api.circles.map((circle) => ({
-    circle,
-    entry: circle.schedule.find((e) => !e.collected && (e.funding ? !e.funding.queuedAt : !e.paid)),
-  })).filter((item) => item.entry).sort((a, b) => a.entry!.date.localeCompare(b.entry!.date));
+  const accounts = jointAccountsForUser(api.circles);
   return (
     <div className="space-y-7">
       <header className="rise">
-        <h1 className="text-3xl font-extrabold tracking-tight">Joint Bank Account</h1>
-        <p className="mt-1 max-w-lg text-muted-foreground">Your circle members, combined demo balance, and upcoming payment dates in one place.</p>
+        <h1 className="text-3xl font-extrabold tracking-tight">Joint Accounts</h1>
+        <p className="mt-1 max-w-lg text-muted-foreground">One separate joint account for each savings circle. Each balance and payment schedule belongs only to that circle.</p>
         <SimNote className="mt-3" />
       </header>
 
-      {me && (
-        <section className="rise relative overflow-hidden rounded-3xl bg-primary p-6 text-primary-foreground sm:p-8" data-testid="card-joint-account">
+      {accounts.length === 0 && (
+        <div className="rounded-2xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
+          No joint accounts yet. Create a savings circle to open its demo joint account.
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      {accounts.map(({ circle, balance, nextDue }, index) => (
+        <section key={circle.id} style={{ animationDelay: `${index * 60}ms` }} className="rise relative min-w-0 overflow-hidden rounded-3xl bg-primary p-6 text-primary-foreground sm:p-8" data-testid={`card-joint-account-${circle.id}`}>
           <div aria-hidden className="pointer-events-none absolute -right-14 -top-14 h-52 w-52 rounded-full border-[26px] border-white/5" />
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-foreground/70">Joint bank account (mock)</p>
-              <p className="mt-2 flex items-center gap-2 text-lg font-bold"><Landmark className="h-5 w-5" aria-hidden /> {me.bank}</p>
+          <div className="relative flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-foreground/70">Joint account (mock)</p>
+              <h2 className="mt-2 break-words text-xl font-bold">{circle.name}</h2>
+              <p className="mt-2 flex items-center gap-2 text-xs text-primary-foreground/75"><Landmark className="h-4 w-4 shrink-0" aria-hidden /> National Bank of Kuwait</p>
             </div>
             <span className="rounded-full border border-dashed border-white/40 px-2.5 py-0.5 text-[11px] font-semibold">Simulated</span>
           </div>
-          <p className="num mt-8 text-xl tracking-widest" data-testid="text-joint-card">**** **** **** {me.last4}</p>
-          <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-xs text-primary-foreground/65">User & circle members</p>
-              <p className="text-xs text-primary-foreground/65">Combined demo wallet balance</p>
-            </div>
-            <p className="num text-2xl font-semibold sm:text-3xl" data-testid="text-joint-balance">{fmtKWD(jointBalance)}</p>
+          <p className="num mt-4 break-all text-[10px] text-primary-foreground/65">Account reference: JD-{circle.id}</p>
+          <div className="relative mt-6">
+            <p className="text-sm text-primary-foreground/75">Protected balance</p>
+            <p className="num mt-1 break-words text-3xl font-semibold" data-testid={`text-joint-balance-${circle.id}`}>{fmtKWD(balance)}</p>
+            <p className="mt-2 text-xs text-primary-foreground/75">Savings goal: <span className="num font-semibold">{fmtKWD(circleGoal(circle))}</span></p>
           </div>
-          <p className="mt-3 text-[11px] text-primary-foreground/65">Combined participant wallet balances, not an additional deposit. Funds held in escrow are shown in each circle.</p>
-          <div className="mt-6 border-t border-white/20 pt-5">
+          <p className="relative mt-3 text-[11px] text-primary-foreground/65">Only this circle’s deposited contributions. Personal wallet funds and other circles are not included.</p>
+          <div className="relative mt-6 border-t border-white/20 pt-5">
             <h2 className="flex items-center gap-2 text-sm font-bold"><CalendarClock className="h-4 w-4" /> Payment due dates</h2>
-            {duePayments.length === 0 ? <p className="mt-3 text-sm text-primary-foreground/75">All contributions paid. No payments due.</p> : (
-              <ul className="mt-3 space-y-3" data-testid="list-payment-due-dates">
-                {duePayments.map(({ circle, entry }) => (
-                  <li key={circle.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <div><p className="font-semibold">{circle.name}</p><p className="text-xs text-primary-foreground/70">Month {entry!.month} · {circle.autoDebit ? 'Auto-debit active' : 'Auto-debit paused'}</p></div>
-                    <div className="text-right"><p className="font-semibold">{fmtDate(entry!.date)}</p><p className="text-xs text-primary-foreground/70">{entry!.date < api.simulatedDate ? 'Overdue in demo' : entry!.date === api.simulatedDate ? 'Due today' : 'Upcoming'}</p></div>
-                  </li>
-                ))}
-              </ul>
+            {!nextDue ? <p className="mt-3 text-sm text-primary-foreground/75">All contributions paid. No payments due.</p> : (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm" data-testid={`next-payment-due-${circle.id}`}>
+                <div><p className="font-semibold">Month {nextDue.month}</p><p className="text-xs text-primary-foreground/70">{circle.autoDebit ? 'Auto-debit active' : 'Auto-debit paused'}</p></div>
+                <div className="text-right"><p className="font-semibold">{fmtDate(nextDue.date)}</p><p className="text-xs text-primary-foreground/70">{nextDue.date < api.simulatedDate ? 'Overdue in demo' : nextDue.date === api.simulatedDate ? 'Due today' : 'Upcoming'}</p></div>
+              </div>
             )}
           </div>
+          <div className="relative mt-6 border-t border-white/20 pt-5">
+            <h3 className="text-sm font-bold">Circle members</h3>
+            <ul className="mt-3 grid grid-cols-2 gap-2">
+              {circle.members.map((member) => (
+                <li key={member} className="flex min-w-0 items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm" data-testid={`joint-member-${circle.id}-${displayMember(member)}`}>
+                  <Initials name={member} size="sm" highlight={displayMember(member) === 'User'} />
+                  <span className="truncate font-medium">{displayMember(member)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
-      )}
-
-      <section className="rise" style={{ animationDelay: '80ms' }}>
-        <h2 className="mb-3 text-lg font-bold tracking-tight">Account members</h2>
-        {api.wallets.length === 0 ? (
-          <div className="rounded-2xl border border-dashed bg-card/60 p-8 text-center text-sm text-muted-foreground">No participant wallets yet. Create a circle to add members.</div>
-        ) : (
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {api.wallets.map((w) => (
-              <li key={w.member} className="flex items-center gap-3 rounded-2xl border bg-card p-4" data-testid={`card-wallet-${displayMember(w.member)}`}>
-                <Initials name={w.member} highlight={w.member === 'Ahmed'} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{displayMember(w.member)}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      ))}
+      </div>
     </div>
   );
 }
@@ -181,7 +171,7 @@ export function DemoControlBar({ api }: { api: CirclesApi }) {
             {r && <span className="num">· last run {fmtStamp(r.timestamp)}</span>}
           </div>
           <p aria-live="polite" className="truncate text-xs font-medium" data-testid="text-last-run">{summary}</p>
-          <p className="text-[10px] leading-snug text-muted-foreground">Simulated clock: runs only when you click. Nothing executes while the app is closed. No real money, escrow or bank.</p>
+          <p className="text-[10px] leading-snug text-muted-foreground">Simulated clock: runs only when you click. Nothing executes while the app is closed. Protected balances are simulated; no real money or bank.</p>
         </div>
         <Button onClick={() => api.simulateNextMonth()} className="h-10 shrink-0 rounded-xl" data-testid="button-simulate-month">
           <WalletIcon className="mr-1.5 h-4 w-4" aria-hidden /> Simulate Next Month's Auto-Debit
@@ -191,7 +181,7 @@ export function DemoControlBar({ api }: { api: CirclesApi }) {
   );
 }
 
-export function EscrowVault({ circle, api }: { circle: Circle; api: CirclesApi }) {
+export function ProtectedBalancePanel({ circle, api }: { circle: Circle; api: CirclesApi }) {
   const v = vaultInfo(circle);
   const txs = api.transactions.filter((t) => t.circleId === circle.id).slice().sort((a, b) => b.timestamp.localeCompare(a.timestamp));
   const monthTx = v.entry ? txs.filter((t) => t.month === v.entry!.month) : [];
@@ -201,10 +191,10 @@ export function EscrowVault({ circle, api }: { circle: Circle; api: CirclesApi }
 
   return (
     <section className="rise grid gap-4 lg:grid-cols-[1.1fr_1fr]" style={{ animationDelay: '40ms' }}>
-      <div className="rounded-3xl border-2 border-primary/30 bg-card p-5 sm:p-6" data-testid="section-escrow-vault">
+      <div className="rounded-3xl border-2 border-primary/30 bg-card p-5 sm:p-6" data-testid="section-protected-balance">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-primary"><Lock className="h-3.5 w-3.5" aria-hidden /> Escrow Holding Vault</p>
+            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-primary"><Lock className="h-3.5 w-3.5" aria-hidden /> Protected balance</p>
             <p className="num mt-2 text-3xl font-semibold" data-testid="text-vault-held">{fmtKWD(v.held)}</p>
             <p className="text-xs text-muted-foreground">Total held across all monthly vaults · {v.queuedCount} payouts queued</p>
             <p className="num mt-1 text-xs text-muted-foreground">{fmtKWD(v.currentHeld)} of {fmtKWD(v.target)} {v.entry ? `for month ${v.entry.month}` : ''}</p>
@@ -261,7 +251,7 @@ export function EscrowVault({ circle, api }: { circle: Circle; api: CirclesApi }
                   {t.kind === 'transfer' ? 'Released' : t.kind === 'queued' ? 'Queued' : t.kind === 'failed' ? 'Failed' : 'Held'}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{t.message}</p>
+                  <p className="font-medium">{fundingMessage(t.message)}</p>
                   <p className="num text-muted-foreground">M{t.month} · {displayMember(t.member)} · {fmtStamp(t.timestamp)}</p>
                 </div>
                 <span className="num shrink-0 font-semibold">{fmtKWD(t.amount)}</span>

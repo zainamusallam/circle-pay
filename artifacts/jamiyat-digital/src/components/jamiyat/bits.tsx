@@ -7,7 +7,7 @@ export function StatusBadge({ status, testId }: { status: MonthStatus; testId?: 
     Paid: { cls: 'bg-sky-50 text-sky-800 ring-sky-200', Icon: Check },
     Pending: { cls: 'bg-amber-50 text-amber-800 ring-amber-200', Icon: Clock },
     Collected: { cls: 'bg-emerald-50 text-emerald-800 ring-emerald-200', Icon: HandCoins },
-    'Auto-Paid (Escrow Secured)': { cls: 'bg-teal-50 text-teal-900 ring-teal-300', Icon: ShieldCheck },
+    'Auto-Paid (Protected Balance Secured)': { cls: 'bg-teal-50 text-teal-900 ring-teal-300', Icon: ShieldCheck },
   }[status] ?? { cls: 'bg-muted text-muted-foreground ring-border', Icon: Clock };
   return (
     <span

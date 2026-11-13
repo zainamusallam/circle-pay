@@ -9,7 +9,7 @@ import { circleGoal, circleStats, displayMember, fmtDate, fmtKWD, type Circle, t
 import type { CirclesApi } from '@/hooks/use-circles';
 import { cn } from '@/lib/utils';
 import { Initials, ProgressBar, StatusBadge } from './bits';
-import { AutoDebitToggle, EscrowVault, displayStatus, fmtStamp, hasHeldFunds } from './funding-ui';
+import { AutoDebitToggle, ProtectedBalancePanel, displayStatus, fmtStamp, hasHeldFunds } from './funding-ui';
 
 type Props = { circle: Circle; api: CirclesApi; onBack: () => void };
 
@@ -113,7 +113,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
 
       <div className="rise rounded-2xl border bg-card px-5 py-4"><AutoDebitToggle circle={circle} onToggle={api.toggleAutoDebit} /></div>
 
-      <EscrowVault circle={circle} api={api} />
+      <ProtectedBalancePanel circle={circle} api={api} />
 
       <section className="rise" style={{ animationDelay: '80ms' }}>
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">

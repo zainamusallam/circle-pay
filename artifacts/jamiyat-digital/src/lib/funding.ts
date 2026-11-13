@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { seedCircles, type Circle } from './circles';
+import { displayMember, seedCircles, type Circle } from './circles';
 
 export const INITIAL_BALANCE = 1500;
 export type Wallet = { member: string; bank: string; last4: string; balance: number };
@@ -42,6 +42,19 @@ export function heldForCircle(circle: Circle): number {
     sum + (e.collected ? 0 : (e.funding?.payments.reduce((s, p) => s + p.amount, 0) ?? 0)), 0));
 }
 
+/** Joint accounts contain only the funds deposited into their own circle. */
+export function jointAccountsForUser(circles: Circle[]) {
+  return circles.filter((c) => c.members.some((m) => displayMember(m) === 'User')).map((circle) => ({
+    circle,
+    balance: heldForCircle(circle),
+    nextDue: circle.schedule.find((e) => !e.collected && (e.funding ? !e.funding.queuedAt : !e.paid)) ?? null,
+  }));
+}
+
+/** Apply current presentation wording to saved transaction messages too. */
+export const fundingMessage = (message: string) =>
+  message.replace(/\bescrow(?: vault)?\b/gi, 'protected balance');
+
 /** One simulated billing cycle per enabled circle. Retries never charge a receipt twice. */
 export function simulateBilling(state: FundingState, timestamp: string): FundingState {
   const wallets = ensureWallets(state.circles, state.wallets);
@@ -80,7 +93,7 @@ export function simulateBilling(state: FundingState, timestamp: string): Funding
       wallet.balance = money(wallet.balance - c.amount);
       funding.payments.push({ member, amount: c.amount, timestamp });
       report.debited++;
-      log(member, 'debit', c.amount, 'Auto-debit deposited into the simulated escrow vault.');
+      log(member, 'debit', c.amount, 'Auto-debit deposited into the simulated protected balance.');
     }
     if (funding.payments.length === c.members.length) {
       funding.queuedAt = timestamp;
@@ -114,7 +127,7 @@ export function collectMonth(state: FundingState, id: string, month: number, tim
     transactions.push({
       id: `${id}:${month}:transfer`, circleId: id, circleName: c.name, month,
       member: entry.recipient, kind: 'transfer', amount, timestamp,
-      message: 'Simulated escrow released to recipient wallet.',
+      message: 'Simulated protected balance released to recipient wallet.',
     });
   }
   return {

@@ -1,1 +1,1 @@
-- [Funding demo scope](funding-demo.md) — mock wallets and escrow stay local; queuing a payout is distinct from releasing it.
+- [Funding demo scope](funding-demo.md) — mock funding stays local; each circle has a separate joint account using “protected balance” terminology.
