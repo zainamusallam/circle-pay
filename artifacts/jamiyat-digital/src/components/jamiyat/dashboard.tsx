@@ -1,6 +1,6 @@
 import { ArrowUpRight, CalendarClock, CircleDollarSign, Layers, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { circleStats, fmtDate, fmtKWD, type Circle } from '@/lib/circles';
+import { circleGoal, circleStats, displayMember, fmtDate, fmtKWD, type Circle } from '@/lib/circles';
 import { Initials, ProgressBar } from './bits';
 import { AutoDebitToggle, VaultMeter } from './funding-ui';
 
@@ -20,7 +20,7 @@ export function CircleCard({ circle, onOpen, index, onToggleAuto }: { circle: Ci
         <div className="min-w-0">
           <h3 className="truncate text-base font-bold tracking-tight" data-testid={`text-circle-name-${circle.id}`}>{circle.name}</h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            <span className="num font-semibold text-foreground">{fmtKWD(circle.amount)}</span> / month
+            <span className="num font-semibold text-foreground">{fmtKWD(circleGoal(circle))}</span> savings goal
           </p>
         </div>
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
@@ -71,7 +71,7 @@ export function Dashboard({ circles, onOpen, onNew, onSeeAll, onToggleAuto }: { 
     {
       label: 'Next Payout Due',
       value: next ? fmtDate(next.e!.date) : 'None scheduled',
-      hint: next ? `${fmtKWD(next.c.amount * next.c.months)} to ${next.e!.recipient}` : 'Start a circle to begin',
+      hint: next ? `${fmtKWD(next.c.amount * next.c.months)} to ${displayMember(next.e!.recipient)}` : 'Start a circle to begin',
       Icon: CalendarClock,
       id: 'next-payout',
     },
@@ -82,7 +82,7 @@ export function Dashboard({ circles, onOpen, onNew, onSeeAll, onToggleAuto }: { 
       <header className="rise flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-primary">{part}</p>
-          <h1 className="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl" data-testid="text-greeting">Welcome back, Ahmed</h1>
+          <h1 className="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl" data-testid="text-greeting">Welcome back, User</h1>
           <p className="mt-2 max-w-md text-muted-foreground">Here is where every circle stands today. Who has paid, who collects next.</p>
         </div>
         <Button onClick={onNew} size="lg" className="rounded-xl" data-testid="button-new-circle-hero">

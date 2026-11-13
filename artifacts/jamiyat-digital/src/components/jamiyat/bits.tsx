@@ -1,6 +1,6 @@
 import { Check, Clock, HandCoins, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { MonthStatus } from '@/lib/circles';
+import { displayMember, type MonthStatus } from '@/lib/circles';
 
 export function StatusBadge({ status, testId }: { status: MonthStatus; testId?: string }) {
   const map = {
@@ -31,7 +31,7 @@ export function Initials({ name, highlight, size = 'md' }: { name: string; highl
         highlight ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground ring-1 ring-border',
       )}
     >
-      {name.slice(0, 2).toUpperCase()}
+      {displayMember(name).slice(0, 2).toUpperCase()}
     </span>
   );
 }

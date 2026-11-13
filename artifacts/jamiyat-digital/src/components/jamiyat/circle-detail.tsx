@@ -5,7 +5,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { circleStats, fmtDate, fmtKWD, type Circle, type MonthEntry } from '@/lib/circles';
+import { circleGoal, circleStats, displayMember, fmtDate, fmtKWD, type Circle, type MonthEntry } from '@/lib/circles';
 import type { CirclesApi } from '@/hooks/use-circles';
 import { cn } from '@/lib/utils';
 import { Initials, ProgressBar, StatusBadge } from './bits';
@@ -26,7 +26,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
     }
     if (auto && e.funding?.queuedAt) {
       return isCurrent ? (
-        <Button size="sm" className="h-8 rounded-lg" onClick={() => { api.markCollected(circle.id, e.month); toast({ title: 'Demo transfer completed', description: `${fmtKWD(pot)} released to ${e.recipient} (simulated).` }); }} data-testid={`button-complete-transfer-${e.month}`}>
+        <Button size="sm" className="h-8 rounded-lg" onClick={() => { api.markCollected(circle.id, e.month); toast({ title: 'Demo transfer completed', description: `${fmtKWD(pot)} released to ${displayMember(e.recipient)} (simulated).` }); }} data-testid={`button-complete-transfer-${e.month}`}>
           <HandCoins className="mr-1 h-3.5 w-3.5" /> Complete demo transfer
         </Button>
       ) : <span className="text-xs text-muted-foreground">Held, queued</span>;
@@ -59,7 +59,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
           size="sm" variant="outline" disabled={!isCurrent}
           title={isCurrent ? undefined : 'Payouts are collected in rotation order'}
           className="h-8 rounded-lg border-primary/40 text-primary"
-          onClick={() => { api.markCollected(circle.id, e.month); toast({ title: `Payout collected by ${e.recipient}`, description: `${fmtKWD(pot)} released for month ${e.month}.` }); }}
+          onClick={() => { api.markCollected(circle.id, e.month); toast({ title: `Payout collected by ${displayMember(e.recipient)}`, description: `${fmtKWD(pot)} released for month ${e.month}.` }); }}
           data-testid={`button-mark-collected-${e.month}`}
         >
           <HandCoins className="mr-1 h-3.5 w-3.5" /> Collect
@@ -85,7 +85,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl" data-testid="text-circle-title">{circle.name}</h1>
           <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-4">
             {[
-              ['Monthly', fmtKWD(circle.amount)],
+              ['Savings goal', fmtKWD(circleGoal(circle))],
               ['Payout pot', fmtKWD(pot)],
               ['You contributed', fmtKWD(s.contributed)],
               ['Your turn', s.ahmedTurn ? `Month ${s.ahmedTurn.month}` : 'Not in rotation'],
@@ -148,7 +148,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2.5">
                         <Initials name={e.recipient} size="sm" highlight={e.recipient === 'Ahmed'} />
-                        <span className="font-medium">{e.recipient}{e.recipient === 'Ahmed' && <span className="text-muted-foreground"> (you)</span>}</span>
+                        <span className="font-medium">{displayMember(e.recipient)}{e.recipient === 'Ahmed' && <span className="text-muted-foreground"> (you)</span>}</span>
                       </div>
                     </td>
                     <td className="px-5 py-3.5"><StatusBadge status={displayStatus(e)} testId={`status-month-${e.month}`} />{e.funding?.queuedAt && <p className="num mt-1 text-[11px] text-muted-foreground">{e.collected ? 'Released' : 'Queued'} {fmtStamp(e.funding.releasedAt ?? e.funding.queuedAt)}</p>}</td>
@@ -170,7 +170,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
                   <div className="flex min-w-0 items-center gap-3">
                     <Initials name={e.recipient} highlight={e.recipient === 'Ahmed'} />
                     <div>
-                      <p className="font-semibold">{e.recipient}{e.recipient === 'Ahmed' && <span className="font-normal text-muted-foreground"> (you)</span>}</p>
+                      <p className="font-semibold">{displayMember(e.recipient)}{e.recipient === 'Ahmed' && <span className="font-normal text-muted-foreground"> (you)</span>}</p>
                       <p className="text-xs text-muted-foreground"><span className="num">Month {e.month}</span> · {fmtDate(e.date)}</p>
                       {e.funding?.queuedAt && <p className="num text-[11px] text-muted-foreground">{e.collected ? 'Released' : 'Queued'} {fmtStamp(e.funding.releasedAt ?? e.funding.queuedAt)}</p>}
                     </div>

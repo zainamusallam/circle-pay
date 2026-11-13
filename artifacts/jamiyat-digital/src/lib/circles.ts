@@ -38,6 +38,13 @@ export const fmtKWD = (n: number) =>
 
 export const fmtDate = (iso: string) => format(parseISO(iso), 'd MMM yyyy');
 
+// Retain the existing member key so saved receipts and wallet ownership stay intact.
+export const displayMember = (name: string) => name === 'Ahmed' || name === 'Ahmed Al-Sabah' ? 'User' : name;
+
+/** Presentation savings goals are separate from the agreed monthly contribution. */
+export const circleGoal = (c: Circle) =>
+  c.id === 'family-friends' ? 3000 : c.id === 'office-colleagues' ? 7000 : c.amount * c.months;
+
 export function buildCircle(input: {
   name: string; amount: number; months: number; startDate: string; members?: string[];
 }): Circle {

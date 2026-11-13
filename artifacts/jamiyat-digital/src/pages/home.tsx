@@ -41,7 +41,7 @@ export default function Home() {
   const nav = [
     { id: 'dashboard' as const, label: 'Dashboard', Icon: LayoutGrid },
     { id: 'circles' as const, label: 'My Circles', Icon: Layers },
-    { id: 'accounts' as const, label: 'Linked Accounts', Icon: CreditCard },
+    { id: 'accounts' as const, label: 'Joint Account', Icon: CreditCard },
   ];
   const toggleAuto = (id: string, enabled: boolean) => {
     api.toggleAutoDebit(id, enabled);
@@ -75,9 +75,9 @@ export default function Home() {
           <div className="rounded-2xl bg-muted p-4">
             <p className="text-xs font-semibold text-muted-foreground">Signed in as</p>
             <div className="mt-2 flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">AH</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">US</span>
               <div>
-                <p className="text-sm font-bold">Ahmed Al-Sabah</p>
+                <p className="text-sm font-bold">User</p>
                 <button onClick={() => go({ kind: 'accounts' })} className="text-xs font-semibold text-primary hover:underline" data-testid="link-profile-accounts">NBK **4892 (mock)</button>
                 <p className="text-xs text-muted-foreground">Kuwait City</p>
               </div>
