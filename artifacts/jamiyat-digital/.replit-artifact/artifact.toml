@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Jamiyat Digital"
+description = "A responsive fintech demo for Kuwaiti rotating savings circles, with an interactive dashboard, monthly rotation ledgers, and smart local circle creation."
+version = "1.0.0"
+id = "artifacts/jamiyat-digital"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24661
+
+[services.development]
+run = "pnpm --filter @workspace/jamiyat-digital run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/jamiyat-digital", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/jamiyat-digital/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24661"
+BASE_PATH = "/"

@@ -1,0 +1,1 @@
+- [Funding demo scope](funding-demo.md) — mock wallets and escrow stay local; queuing a payout is distinct from releasing it.
