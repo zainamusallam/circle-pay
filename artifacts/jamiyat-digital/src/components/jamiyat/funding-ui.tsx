@@ -27,7 +27,7 @@ export function vaultInfo(circle: Circle) {
   const currentHeld = e && !e.collected && !e.funding?.releasedAt ? payments.reduce((a, p) => a + p.amount, 0) : 0;
   const held = heldForCircle(circle);
   const queuedCount = circle.schedule.filter((m) => m.funding?.queuedAt && !m.collected).length;
-  const target = circle.amount * circle.members.length;
+  const target = circleGoal(circle);
   return {
     entry: e,
     payments,
@@ -122,7 +122,7 @@ export function LinkedAccounts({ api }: { api: CirclesApi }) {
             </div>
             <span className="rounded-full border border-dashed border-white/40 px-2.5 py-0.5 text-[11px] font-semibold">Simulated</span>
           </div>
-          <p className="num mt-4 break-all text-[10px] text-primary-foreground/65">Account reference: JD-{circle.id}</p>
+          <p className="num mt-4 break-all text-[10px] text-primary-foreground/65">Account reference: CP-{circle.id}</p>
           <div className="relative mt-6">
             <p className="text-sm text-primary-foreground/75">Protected balance</p>
             <p className="num mt-1 break-words text-3xl font-semibold" data-testid={`text-joint-balance-${circle.id}`}>{fmtKWD(balance)}</p>
@@ -225,6 +225,7 @@ export function ProtectedBalancePanel({ circle, api }: { circle: Circle; api: Ci
                   <li key={m} className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5 text-xs" data-testid={`receipt-${m}`}>
                     <Initials name={m} size="sm" highlight={m === 'Ahmed'} />
                     <span className="min-w-0 flex-1 truncate font-medium">{displayMember(m)}</span>
+                    {p && <span className="num font-semibold" data-testid={`text-receipt-amount-${m}`}>{fmtKWD(p.amount)}</span>}
                     {p ? <span className="text-right text-primary"><ShieldCheck className="mr-0.5 inline h-3 w-3" aria-hidden /><span className="num">{fmtStamp(p.timestamp)}</span></span>
                       : f ? <span className="font-semibold text-destructive">Failed</span>
                       : <span className="text-muted-foreground">Awaiting</span>}

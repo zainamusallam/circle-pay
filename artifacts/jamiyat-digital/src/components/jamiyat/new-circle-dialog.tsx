@@ -5,18 +5,18 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { parsePrompt, type ParseResult } from '@/lib/circles';
+import { fmtKWD, parsePrompt, type ParseResult } from '@/lib/circles';
 
-type Values = { name: string; amount: string; months: string; startDate: string };
+type Values = { name: string; goal: string; months: string; startDate: string };
 type Errors = Partial<Record<keyof Values, string>>;
 
 const EXAMPLE = 'Create a 5-month circle for 40 dinars each starting next month';
-const blank = (): Values => ({ name: '', amount: '', months: '6', startDate: format(addMonths(startOfMonth(new Date()), 1), 'yyyy-MM-dd') });
+const blank = (): Values => ({ name: '', goal: '', months: '6', startDate: format(addMonths(startOfMonth(new Date()), 1), 'yyyy-MM-dd') });
 
 export function NewCircleDialog({ open, onOpenChange, onCreate }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  onCreate: (v: { name: string; amount: number; months: number; startDate: string }) => void;
+  onCreate: (v: { name: string; goal: number; months: number; startDate: string }) => void;
 }) {
   const [values, setValues] = useState<Values>(blank);
   const [errors, setErrors] = useState<Errors>({});
@@ -31,12 +31,15 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
     const r = parsePrompt(prompt);
     setResult(r);
     if (r.understood.length) {
-      setValues((p) => ({
-        name: r.fields.name ?? p.name,
-        amount: r.fields.amount != null ? String(r.fields.amount) : p.amount,
-        months: r.fields.months != null ? String(r.fields.months) : p.months,
-        startDate: r.fields.startDate ?? p.startDate,
-      }));
+      setValues((p) => {
+        const months = r.fields.months != null ? String(r.fields.months) : p.months;
+        const m = Number(months);
+        // Assistant reads a MONTHLY amount per member; goal = monthly x participants.
+        const goal = r.fields.amount != null && Number.isInteger(m) && m >= 2 && m <= 24
+          ? String(Math.round(r.fields.amount * m * 1000) / 1000)
+          : p.goal;
+        return { name: r.fields.name ?? p.name, goal, months, startDate: r.fields.startDate ?? p.startDate };
+      });
       setErrors({});
     }
   };
@@ -44,18 +47,20 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
   const submit = (ev: FormEvent) => {
     ev.preventDefault();
     const e: Errors = {};
-    const amount = Number(values.amount);
+    const goal = Number(values.goal);
     const months = Number(values.months);
     if (values.name.trim().length < 2) e.name = 'Give the circle a name (at least 2 characters).';
     else if (values.name.trim().length > 50) e.name = 'Keep the name under 50 characters.';
-    if (!values.amount || !Number.isFinite(amount) || amount <= 0) e.amount = 'Enter an amount greater than 0 KWD.';
-    else if (amount > 10000) e.amount = 'Maximum is 10,000 KWD per month.';
-    else if (!/^\d+(\.\d{1,3})?$/.test(values.amount)) e.amount = 'Use up to 3 decimals (fils).';
-    if (!Number.isInteger(months) || months < 2 || months > 24) e.months = 'Choose between 2 and 24 months.';
+    const monthsOk = /^\d+$/.test(values.months.trim()) && Number.isInteger(months) && months >= 2 && months <= 24;
+    if (!monthsOk) e.months = 'Choose a whole number between 2 and 24.';
+    if (!values.goal || !Number.isFinite(goal) || goal <= 0) e.goal = 'Enter a savings goal greater than 0 KWD.';
+    else if (!/^\d+(\.\d{1,3})?$/.test(values.goal.trim())) e.goal = 'Use up to 3 decimals (fils).';
+    else if (goal > 1000000) e.goal = 'Maximum goal is 1,000,000 KWD.';
+    else if (monthsOk && Math.round(goal * 1000) < months) e.goal = `Goal must give each of ${months} members at least 1 fils.`;
     if (!values.startDate || Number.isNaN(Date.parse(values.startDate))) e.startDate = 'Pick a valid start date.';
     setErrors(e);
     if (Object.keys(e).length) return;
-    onCreate({ name: values.name.trim(), amount, months, startDate: values.startDate });
+    onCreate({ name: values.name.trim(), goal, months, startDate: values.startDate });
     reset();
   };
 
@@ -84,7 +89,7 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
       <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-xl gap-0 rounded-3xl p-0 bg-card">
         <DialogHeader className="px-6 pb-4 pt-6 text-left">
           <DialogTitle className="text-xl font-extrabold tracking-tight">Start a new circle</DialogTitle>
-          <DialogDescription>Describe it in a sentence, or fill the details yourself.</DialogDescription>
+          <DialogDescription>Set a savings goal and member count. Circle Pay splits it into an equal monthly share. The assistant reads a monthly amount per member and converts it into the goal.</DialogDescription>
         </DialogHeader>
 
         <div className="mx-6 rounded-2xl border border-primary/20 bg-accent/60 p-4">
@@ -122,7 +127,7 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
                 <div className="space-y-1">
                   <p className="flex gap-1.5 text-primary">
                     <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0" />
-                    <span>Filled: {result.understood.join(', ')}. Review below before creating.</span>
+                    <span>Filled: {result.understood.join(', ')}. {result.fields.amount != null ? `${result.fields.amount} KWD each per month was converted to a savings goal of ${result.fields.amount} x ${values.months} participants = ${values.goal} KWD.` : ''} Review below before creating.</span>
                   </p>
                   {result.missing.length > 0 && (
                     <p className="flex gap-1.5 text-amber-800"><AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" /><span>Not found, please set manually: {result.missing.join('; ')}.</span></p>
@@ -136,15 +141,31 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
         <form onSubmit={submit} noValidate className="space-y-4 px-6 pb-6 pt-5">
           {field('name', 'Circle Name', { placeholder: 'e.g. Diwaniya Circle', maxLength: 60 })}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {field('amount', 'Monthly Contribution', { inputMode: 'decimal', placeholder: '50' }, 'KWD')}
-            {field('months', 'Months / Members', { type: 'number', min: 2, max: 24, inputMode: 'numeric' })}
+            {field('goal', 'Savings Goal', { inputMode: 'decimal', placeholder: '3000' }, 'KWD')}
+            {field('months', 'Members / Months', { type: 'number', min: 2, max: 24, inputMode: 'numeric' })}
           </div>
           {field('startDate', 'Start Date', { type: 'date' })}
-          {Number(values.amount) > 0 && Number(values.months) >= 2 && (
-            <p className="rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
-              Each month one member receives <span className="num font-semibold text-foreground">{(Number(values.amount) * Number(values.months)).toLocaleString('en-US', { minimumFractionDigits: 3 })} KWD</span>.
-            </p>
-          )}
+          {(() => {
+            const g = Number(values.goal); const n = Number(values.months);
+            const ok = g > 0 && Number.isFinite(g) && Number.isInteger(n) && n >= 2 && n <= 24 && Math.round(g * 1000) >= n;
+            const fils = ok ? Math.round(g * 1000) : 0;
+            const base = ok ? Math.floor(fils / n) / 1000 : 0;
+            const extra = ok ? fils % n : 0;
+            return (
+              <div className="space-y-1.5">
+                <Label htmlFor="f-share" className="text-sm font-semibold">Monthly share per participant</Label>
+                <div id="f-share" role="status" aria-live="polite" className="rounded-xl border border-primary/20 bg-accent/50 px-4 py-3" data-testid="text-derived-share">
+                  {ok ? (
+                    <>
+                      <p className="num text-lg font-semibold text-primary">{fmtKWD(base + (extra ? 0.001 : 0))}{extra ? <span className="text-sm font-medium text-muted-foreground"> max</span> : null}</p>
+                      <p className="num text-xs text-muted-foreground">{fmtKWD(g)} / {n} participants, each billing cycle. One member collects the full goal each month.</p>
+                      {extra > 0 && <p className="text-xs text-muted-foreground">Rounded to fils: {extra} member{extra === 1 ? '' : 's'} pay {fmtKWD(base + 0.001)}, the rest {fmtKWD(base)}.</p>}
+                    </>
+                  ) : <p className="text-sm text-muted-foreground">Read-only. Enter a goal and member count to see each share.</p>}
+                </div>
+              </div>
+            );
+          })()}
           <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
             <Button type="button" variant="ghost" className="rounded-xl" onClick={() => { onOpenChange(false); reset(); }} data-testid="button-cancel-create">Cancel</Button>
             <Button type="submit" className="h-11 rounded-xl px-6" data-testid="button-create-circle">Create circle</Button>

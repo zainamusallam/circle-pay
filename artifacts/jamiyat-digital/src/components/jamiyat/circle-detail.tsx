@@ -5,7 +5,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { circleGoal, circleStats, displayMember, fmtDate, fmtKWD, type Circle, type MonthEntry } from '@/lib/circles';
+import { circleGoal, circleStats, contributionFor, displayMember, fmtDate, fmtKWD, type Circle, type MonthEntry } from '@/lib/circles';
 import type { CirclesApi } from '@/hooks/use-circles';
 import { cn } from '@/lib/utils';
 import { Initials, ProgressBar, StatusBadge } from './bits';
@@ -16,7 +16,11 @@ type Props = { circle: Circle; api: CirclesApi; onBack: () => void };
 export function CircleDetail({ circle, api, onBack }: Props) {
   const { toast } = useToast();
   const s = circleStats(circle);
-  const pot = s.pot;
+  const goal = circleGoal(circle);
+  const pot = goal;
+  const n = circle.members.length;
+  const share = contributionFor(circle);
+  const exact = Math.round(goal * 1000) % n === 0;
 
   const actions = (e: MonthEntry) => {
     const isCurrent = s.current?.month === e.month;
@@ -46,7 +50,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
       return (
         <Button
           size="sm" className="h-8 rounded-lg"
-          onClick={() => { api.markPaid(circle.id, e.month); toast({ title: `Month ${e.month} marked paid`, description: `${fmtKWD(circle.amount)} contribution recorded for ${circle.name}.` }); }}
+          onClick={() => { api.markPaid(circle.id, e.month); toast({ title: `Month ${e.month} marked paid`, description: `${fmtKWD(share)} contribution recorded for ${circle.name}.` }); }}
           data-testid={`button-mark-paid-${e.month}`}
         >
           <Check className="mr-1 h-3.5 w-3.5" /> Mark paid
@@ -83,10 +87,16 @@ export function CircleDetail({ circle, api, onBack }: Props) {
           <div aria-hidden className="pointer-events-none absolute -right-4 top-10 h-28 w-28 rounded-full border-[14px] border-white/5" />
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-foreground/70">Savings circle</p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl" data-testid="text-circle-title">{circle.name}</h1>
+          <div className="relative mt-5 rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 sm:p-5" data-testid="section-contribution">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-foreground/70">Your monthly contribution</p>
+            <p className="num mt-1 text-3xl font-semibold sm:text-4xl" data-testid="text-monthly-contribution">{fmtKWD(share)}</p>
+            <p className="num mt-1.5 text-sm text-primary-foreground/80" data-testid="text-contribution-formula">{fmtKWD(goal)} goal / {n} participants = {fmtKWD(share)} per participant per billing cycle</p>
+            {!exact && <p className="mt-1 text-xs text-primary-foreground/65" data-testid="text-rounding-note">Rounded to the nearest fils. Some members pay 1 fils more so each cycle totals exactly {fmtKWD(goal)}.</p>}
+          </div>
           <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-4">
             {[
-              ['Savings goal', fmtKWD(circleGoal(circle))],
-              ['Payout pot', fmtKWD(pot)],
+              ['Savings goal', fmtKWD(goal)],
+              ['Participants', `${n} people`],
               ['You contributed', fmtKWD(s.contributed)],
               ['Your turn', s.ahmedTurn ? `Month ${s.ahmedTurn.month}` : 'Not in rotation'],
             ].map(([k, v]) => (
@@ -119,7 +129,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div>
             <h2 className="text-lg font-bold tracking-tight">Rotation ledger</h2>
-            <p className="text-sm text-muted-foreground">Paid means this month's contributions are in. Collected means the recipient received the pot.</p>
+            <p className="text-sm text-muted-foreground">Paid means this month's contributions are in. Collected means the recipient received the full goal.</p>
           </div>
         </div>
 
@@ -178,7 +188,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
                   <StatusBadge status={displayStatus(e)} />
                 </div>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-                  <span className="num text-xs text-muted-foreground">{current ? 'Current month' : `Pot ${fmtKWD(pot)}`}</span>
+                  <span className="num text-xs text-muted-foreground">{current ? 'Current month' : `Goal ${fmtKWD(goal)}`}</span>
                   {actions(e)}
                 </div>
               </li>

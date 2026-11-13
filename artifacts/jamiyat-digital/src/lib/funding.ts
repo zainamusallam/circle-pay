@@ -1,7 +1,8 @@
 import { format } from 'date-fns';
-import { displayMember, seedCircles, type Circle } from './circles';
+import { circleGoal, contributionFor, displayMember, seedCircles, type Circle } from './circles';
+import { upgradeFundingState } from './funding-migration';
 
-export const INITIAL_BALANCE = 1500;
+export const INITIAL_BALANCE = 15000;
 export type Wallet = { member: string; bank: string; last4: string; balance: number };
 export type FundingTransaction = {
   id: string; circleId: string; circleName: string; month: number; member: string;
@@ -9,6 +10,7 @@ export type FundingTransaction = {
   amount: number; timestamp: string; message: string;
 };
 export type FundingState = {
+  calculationVersion?: 2;
   circles: Circle[];
   wallets: Wallet[];
   transactions: FundingTransaction[];
@@ -30,11 +32,11 @@ export function ensureWallets(circles: Circle[], wallets: Wallet[] = []): Wallet
 }
 
 export function initialFunding(circles = seedCircles()): FundingState {
-  return {
+  return upgradeFundingState({
     circles: circles.map((c) => ({ ...c, autoDebit: c.autoDebit ?? true })),
     wallets: ensureWallets(circles), transactions: [],
     simulatedDate: format(new Date(), 'yyyy-MM-dd'), lastRun: null,
-  };
+  }, INITIAL_BALANCE);
 }
 
 export function heldForCircle(circle: Circle): number {
@@ -80,25 +82,26 @@ export function simulateBilling(state: FundingState, timestamp: string): Funding
     for (const member of c.members) {
       if (funding.payments.some((p) => p.member === member)) continue;
       const wallet = wallets.find((w) => w.member === member)!;
+      const amount = contributionFor(c, member);
       // A previously recorded manual contribution must not be charged again.
       if (member === 'Ahmed' && target.paid) {
-        funding.payments.push({ member, amount: c.amount, timestamp });
+        funding.payments.push({ member, amount, timestamp });
         continue;
       }
-      if (money(wallet.balance) < c.amount) {
+      if (money(wallet.balance) < amount) {
         report.failed++;
-        log(member, 'failed', c.amount, 'Insufficient demo wallet balance; no deduction made.');
+        log(member, 'failed', amount, 'Insufficient demo wallet balance; no deduction made.');
         continue;
       }
-      wallet.balance = money(wallet.balance - c.amount);
-      funding.payments.push({ member, amount: c.amount, timestamp });
+      wallet.balance = money(wallet.balance - amount);
+      funding.payments.push({ member, amount, timestamp });
       report.debited++;
-      log(member, 'debit', c.amount, 'Auto-debit deposited into the simulated protected balance.');
+      log(member, 'debit', amount, 'Auto-debit deposited into the simulated protected balance.');
     }
     if (funding.payments.length === c.members.length) {
       funding.queuedAt = timestamp;
       report.secured++;
-      log(target.recipient, 'queued', money(c.amount * c.members.length),
+      log(target.recipient, 'queued', circleGoal(c),
         'All contributions secured. Demo transfer queued to designated recipient.');
     }
     return {
@@ -108,7 +111,7 @@ export function simulateBilling(state: FundingState, timestamp: string): Funding
       }),
     };
   });
-  return { circles, wallets, transactions, simulatedDate, lastRun: report };
+  return { ...state, circles, wallets, transactions, simulatedDate, lastRun: report };
 }
 
 /** Releases only a fully funded current-month vault, with an idempotent wallet credit. */

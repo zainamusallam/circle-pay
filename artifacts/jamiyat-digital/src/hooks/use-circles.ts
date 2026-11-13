@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { buildCircle, type Circle } from '@/lib/circles';
 import { collectMonth, ensureWallets, initialFunding, simulateBilling, type FundingState } from '@/lib/funding';
+import { upgradeFundingState } from '@/lib/funding-migration';
 
 const KEY = 'jamiyat-digital:funding:v1';
 const LEGACY_KEY = 'jamiyat-digital:v1';
@@ -11,7 +12,7 @@ function load(): FundingState {
     if (raw) {
       const parsed = JSON.parse(raw) as FundingState;
       if (Array.isArray(parsed.circles) && Array.isArray(parsed.wallets) &&
-          Array.isArray(parsed.transactions) && typeof parsed.simulatedDate === 'string') return parsed;
+          Array.isArray(parsed.transactions) && typeof parsed.simulatedDate === 'string') return upgradeFundingState(parsed);
     }
     const legacy = localStorage.getItem(LEGACY_KEY);
     if (legacy) {

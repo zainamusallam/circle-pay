@@ -3,28 +3,26 @@ import { CreditCard, LayoutGrid, Layers, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCircles } from '@/hooks/use-circles';
-import { fmtKWD } from '@/lib/circles';
+import { circleGoal, contributionFor, fmtKWD } from '@/lib/circles';
 import { cn } from '@/lib/utils';
 import { AllCircles, Dashboard } from '@/components/jamiyat/dashboard';
 import { CircleDetail } from '@/components/jamiyat/circle-detail';
 import { NewCircleDialog } from '@/components/jamiyat/new-circle-dialog';
+import { CirclePayMark, Welcome } from '@/components/jamiyat/welcome';
 import { DemoPill } from '@/components/jamiyat/bits';
 import { DemoControlBar, LinkedAccounts } from '@/components/jamiyat/funding-ui';
 
 type View = { kind: 'dashboard' } | { kind: 'circles' } | { kind: 'accounts' } | { kind: 'circle'; id: string };
 
-function Logo() {
+function Logo({ onClick }: { onClick: () => void }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
-        <span className="h-4 w-4 rounded-full border-[3px] border-primary-foreground" />
-        <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-300" />
-      </span>
+    <button type="button" onClick={onClick} aria-label="Circle Pay, back to welcome screen" className="flex items-center gap-2.5 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-brand-home">
+      <CirclePayMark size={36} />
       <div className="leading-tight">
-        <p className="text-[15px] font-extrabold tracking-tight">Jamiyat</p>
-        <p className="text-[11px] font-medium text-muted-foreground">Digital</p>
+        <p className="text-[15px] font-extrabold tracking-tight">Circle Pay</p>
+        <p className="text-[11px] font-medium text-muted-foreground">Savings circles</p>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -33,6 +31,7 @@ export default function Home() {
   const { toast } = useToast();
   const [view, setView] = useState<View>({ kind: 'dashboard' });
   const [open, setOpen] = useState(false);
+  const [entered, setEntered] = useState(false);
 
   const go = (v: View) => { setView(v); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const circle = view.kind === 'circle' ? api.circles.find((c) => c.id === view.id) : undefined;
@@ -50,11 +49,14 @@ export default function Home() {
 
   const resetDemo = () => { api.reset(); go({ kind: 'dashboard' }); toast({ title: 'Demo reset', description: 'Sample circles, mock wallets and history restored.' }); };
 
+  const toWelcome = () => { setOpen(false); setEntered(false); window.scrollTo({ top: 0 }); };
+  if (!entered) return <Welcome onEnter={() => { setEntered(true); setView({ kind: 'dashboard' }); window.scrollTo({ top: 0 }); }} />;
+
   return (
     <div className="min-h-[100dvh] bg-background">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r bg-sidebar px-5 py-6 lg:flex">
-        <Logo />
+        <Logo onClick={toWelcome} />
         <nav className="mt-10 space-y-1" aria-label="Main">
           {nav.map((n) => (
             <button
@@ -92,7 +94,7 @@ export default function Home() {
 
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/85 px-4 py-3 backdrop-blur lg:hidden">
-        <Logo />
+        <Logo onClick={toWelcome} />
         <div className="flex items-center gap-1">
           <button onClick={resetDemo} aria-label="Reset demo data" className="rounded-lg p-2 text-muted-foreground hover:bg-muted" data-testid="button-reset-demo-mobile"><RotateCcw className="h-4 w-4" /></button>
           <Button size="sm" onClick={() => setOpen(true)} className="rounded-xl" data-testid="button-new-circle-mobile"><Plus className="mr-1 h-4 w-4" /> New</Button>
@@ -149,7 +151,7 @@ export default function Home() {
         onCreate={(v) => {
           const c = api.addCircle(v);
           setOpen(false);
-          toast({ title: `${c.name} created`, description: `${c.months}-month rotation at ${fmtKWD(c.amount)} per month.` });
+          toast({ title: `${c.name} created`, description: `${c.months}-month rotation, goal ${fmtKWD(circleGoal(c))}, ${fmtKWD(contributionFor(c))} each per month.` });
           go({ kind: 'circle', id: c.id });
         }}
       />

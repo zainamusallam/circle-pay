@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildCircle, statusOf } from './circles';
-import { collectMonth, fundingMessage, heldForCircle, initialFunding, jointAccountsForUser, simulateBilling } from './funding';
+import { buildCircle, circleGoal, circleStats, contributionFor, seedCircles, statusOf } from './circles';
+import { collectMonth, ensureWallets, fundingMessage, heldForCircle, INITIAL_BALANCE, initialFunding, jointAccountsForUser, simulateBilling } from './funding';
+import { upgradeFundingState } from './funding-migration';
 
 const stamp = '2026-11-13T10:00:00.000Z';
 const fixture = () => initialFunding([buildCircle({
@@ -21,7 +22,7 @@ test('debits every participant and conserves funds in a fully queued vault', () 
   assert.equal(statusOf(after.circles[0].schedule[0]), 'Auto-Paid (Protected Balance Secured)');
   assert.equal(after.transactions.length, 4);
   assert.equal(after.simulatedDate, '2026-12-01');
-  assert.equal(before.wallets[0].balance, 1500);
+  assert.equal(before.wallets[0].balance, INITIAL_BALANCE);
 });
 
 test('release credits recipient once and conserves total including future queued months', () => {
@@ -34,7 +35,7 @@ test('release credits recipient once and conserves total including future queued
   const released = collectMonth(second, id, 1, stamp);
   assert.equal(total(released), total(before));
   assert.equal(heldForCircle(released.circles[0]), 120.375);
-  assert.equal(released.wallets.find((w) => w.member === 'Ahmed')!.balance, 1540.125);
+  assert.equal(released.wallets.find((w) => w.member === 'Ahmed')!.balance, INITIAL_BALANCE + 40.125);
   assert.equal(collectMonth(released, id, 1, stamp), released);
   assert.equal(released.transactions.filter((t) => t.kind === 'transfer').length, 1);
 });
@@ -84,7 +85,7 @@ test('saved simulation survives JSON roundtrip and shares participant wallets ac
   before.circles.push(buildCircle({ name: 'Second', amount: 50, months: 3, startDate: '2026-12-01' }));
   const after = simulateBilling(before, stamp);
   const restored = JSON.parse(JSON.stringify(after));
-  assert.equal(restored.wallets.find((w: {member: string}) => w.member === 'Ahmed').balance, 1409.875);
+  assert.equal(restored.wallets.find((w: {member: string}) => w.member === 'Ahmed').balance, INITIAL_BALANCE - 90.125);
   assert.equal(restored.circles[0].schedule[0].funding.queuedAt, stamp);
   assert.equal(total(after), total(before));
 });
@@ -114,4 +115,69 @@ test('joint accounts follow membership as circles are created or removed', () =>
 test('previously saved messages use protected balance terminology on display', () => {
   assert.equal(fundingMessage('Auto-debit deposited into the simulated escrow vault.'), 'Auto-debit deposited into the simulated protected balance.');
   assert.equal(fundingMessage('Simulated escrow released to recipient wallet.'), 'Simulated protected balance released to recipient wallet.');
+});
+
+test('7000 KWD divided among seven participants charges exactly 1000 each', () => {
+  const c = buildCircle({ name: 'Seven', goal: 7000, months: 7, startDate: '2026-12-01' });
+  const before = initialFunding([c]);
+  const after = simulateBilling(before, stamp);
+  assert.equal(circleGoal(c), 7000);
+  assert.equal(contributionFor(c), 1000);
+  assert.deepEqual(c.members.map((m) => contributionFor(c, m)), Array(7).fill(1000));
+  assert.equal(after.lastRun?.debited, 7);
+  assert.equal(heldForCircle(after.circles[0]), 7000);
+  assert.equal(circleStats(after.circles[0]).contributed, 1000);
+  assert.deepEqual(after.transactions.filter((t) => t.kind === 'debit').map((t) => t.amount), Array(7).fill(1000));
+  assert.equal(after.transactions.find((t) => t.kind === 'queued')?.amount, 7000);
+  assert.equal(total(after), total(before));
+});
+
+test('uneven splits differ by one fils at most and fund the exact goal', () => {
+  const c = buildCircle({ name: 'Rounding', goal: 1000, months: 3, startDate: '2026-12-01' });
+  assert.deepEqual(c.members.map((m) => contributionFor(c, m)), [333.334, 333.333, 333.333]);
+  const before = initialFunding([c]);
+  const after = simulateBilling(before, stamp);
+  assert.equal(heldForCircle(after.circles[0]), 1000);
+  assert.equal(total(after), total(before));
+});
+
+test('seeded goals, member counts and historical contributions agree', () => {
+  const state = initialFunding();
+  const family = state.circles.find((c) => c.id === 'family-friends')!;
+  const office = state.circles.find((c) => c.id === 'office-colleagues')!;
+  assert.equal(contributionFor(family), 500);
+  assert.equal(office.members.length, 7);
+  assert.equal(office.schedule.length, 7);
+  assert.equal(contributionFor(office), 1000);
+  assert.equal(circleStats(office).contributed, 1000);
+  assert.equal(state.transactions.find((t) => t.circleId === office.id && t.kind === 'transfer')?.amount, 7000);
+  assert.equal(total(state), state.wallets.length * INITIAL_BALANCE * 1000);
+});
+
+test('old saved demo receipts, history and wallets are repriced together exactly once', () => {
+  const legacy = seedCircles().find((c) => c.id === 'office-colleagues')!;
+  delete legacy.goal;
+  legacy.members = legacy.members.slice(0, 6);
+  legacy.months = 6;
+  legacy.amount = 100;
+  legacy.schedule = legacy.schedule.slice(0, 6).map((e, i) => ({
+    ...e, collected: false, paid: i === 0,
+    funding: i === 0 ? {
+      payments: legacy.members.map((member) => ({ member, amount: 100, timestamp: stamp })),
+      queuedAt: stamp,
+    } : undefined,
+  }));
+  const migrated = upgradeFundingState({
+    circles: [legacy], wallets: ensureWallets([legacy]), transactions: [],
+    simulatedDate: '2026-11-13', lastRun: null,
+  });
+  const c = migrated.circles[0];
+  assert.equal(c.members.length, 7);
+  assert.equal(c.schedule[0].funding?.payments.length, 7);
+  assert.equal(heldForCircle(c), 7000);
+  assert.equal(c.schedule[0].funding?.queuedAt, stamp);
+  assert.equal(circleStats(c).contributed, 1000);
+  assert.equal(migrated.transactions.filter((t) => t.kind === 'debit').length, 7);
+  assert.equal(total(migrated), migrated.wallets.length * INITIAL_BALANCE * 1000);
+  assert.equal(upgradeFundingState(migrated), migrated);
 });

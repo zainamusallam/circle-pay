@@ -71,7 +71,7 @@ export function Dashboard({ circles, onOpen, onNew, onSeeAll, onToggleAuto }: { 
     {
       label: 'Next Payout Due',
       value: next ? fmtDate(next.e!.date) : 'None scheduled',
-      hint: next ? `${fmtKWD(next.c.amount * next.c.months)} to ${displayMember(next.e!.recipient)}` : 'Start a circle to begin',
+      hint: next ? `${fmtKWD(circleGoal(next.c))} to ${displayMember(next.e!.recipient)}` : 'Start a circle to begin',
       Icon: CalendarClock,
       id: 'next-payout',
     },
@@ -131,7 +131,7 @@ export function EmptyCircles({ onNew }: { onNew: () => void }) {
     <div className="rounded-2xl border border-dashed bg-card/60 px-6 py-12 text-center">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent text-primary"><Layers className="h-5 w-5" /></div>
       <h3 className="mt-4 font-bold">No active circles</h3>
-      <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">Gather family or colleagues, agree on an amount, and let the rotation do the rest.</p>
+      <p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">Gather family or colleagues, agree on a goal, and let the rotation do the rest.</p>
       <Button onClick={onNew} className="mt-5 rounded-xl" data-testid="button-new-circle-empty"><Plus className="mr-1.5 h-4 w-4" /> Create a circle</Button>
     </div>
   );

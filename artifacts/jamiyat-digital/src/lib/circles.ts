@@ -17,6 +17,7 @@ export type Circle = {
   id: string;
   name: string;
   amount: number;
+  goal?: number;
   months: number;
   startDate: string;
   members: string[];
@@ -41,20 +42,35 @@ export const fmtDate = (iso: string) => format(parseISO(iso), 'd MMM yyyy');
 // Retain the existing member key so saved receipts and wallet ownership stay intact.
 export const displayMember = (name: string) => name === 'Ahmed' || name === 'Ahmed Al-Sabah' ? 'User' : name;
 
-/** Presentation savings goals are separate from the agreed monthly contribution. */
+/** The goal is the amount funded by all participants in each monthly rotation. */
 export const circleGoal = (c: Circle) =>
-  c.id === 'family-friends' ? 3000 : c.id === 'office-colleagues' ? 7000 : c.amount * c.months;
+  c.goal ?? (c.id === 'family-friends' ? 3000 : c.id === 'office-colleagues' ? 7000 : Math.round(c.amount * c.members.length * 1000) / 1000);
+
+/** Split integer fils as evenly as possible, distributing at most one extra fils per member. */
+export function contributionFor(c: Circle, member = 'Ahmed'): number {
+  const totalFils = Math.round(circleGoal(c) * 1000);
+  const count = c.members.length;
+  if (!count) return 0;
+  const index = c.members.indexOf(member);
+  const remainder = totalFils % count;
+  return (Math.floor(totalFils / count) + (index >= 0 && index < remainder ? 1 : 0)) / 1000;
+}
 
 export function buildCircle(input: {
-  name: string; amount: number; months: number; startDate: string; members?: string[];
+  name: string; amount?: number; goal?: number; months: number; startDate: string; members?: string[];
 }): Circle {
   const members = input.members ?? Array.from({ length: input.months }, (_, i) => MEMBER_POOL[i % MEMBER_POOL.length] + (i >= MEMBER_POOL.length ? ` ${Math.floor(i / MEMBER_POOL.length) + 1}` : ''));
   const start = parseISO(input.startDate);
-  return {
+  const goal = Math.round((input.goal ?? (input.amount ?? 0) * members.length) * 1000) / 1000;
+  if (!Number.isFinite(goal) || goal * 1000 < members.length || members.length < 2) {
+    throw new Error('The savings goal must cover at least one fils per participant.');
+  }
+  const circle: Circle = {
     id: `c_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
     name: input.name.trim(),
-    amount: input.amount,
-    months: input.months,
+    amount: 0,
+    goal,
+    months: members.length,
     startDate: input.startDate,
     members,
     autoDebit: true,
@@ -66,21 +82,23 @@ export function buildCircle(input: {
       collected: false,
     })),
   };
+  circle.amount = contributionFor(circle);
+  return circle;
 }
 
 export function seedCircles(): Circle[] {
   const base = startOfMonth(new Date());
   const fam = buildCircle({
-    name: 'Family & Friends Circle', amount: 50, months: 6,
+    name: 'Family & Friends Circle', goal: 3000, months: 6,
     startDate: format(addMonths(base, -2), 'yyyy-MM-dd'),
     members: ['Fatima', 'Ahmed', 'Omar', 'Sara', 'Khalid', 'Noor'],
   });
   fam.id = 'family-friends';
   fam.schedule = fam.schedule.map((e, i) => ({ ...e, paid: i < 2, collected: i < 2 }));
   const office = buildCircle({
-    name: 'Office Colleagues', amount: 100, months: 6,
+    name: 'Office Colleagues', goal: 7000, months: 7,
     startDate: format(addMonths(base, -1), 'yyyy-MM-dd'),
-    members: ['Khalid', 'Noor', 'Ahmed', 'Yousef', 'Maryam', 'Hamad'],
+    members: ['Khalid', 'Noor', 'Ahmed', 'Yousef', 'Maryam', 'Hamad', 'Sara'],
   });
   office.id = 'office-colleagues';
   office.schedule = office.schedule.map((e, i) => ({ ...e, paid: i < 1, collected: i < 1 }));
@@ -98,8 +116,12 @@ export function circleStats(c: Circle) {
   return {
     paidCount,
     collectedCount,
-    contributed: paidCount * c.amount,
-    pot: c.amount * c.months,
+    contributed: Math.round(c.schedule.reduce((sum, e) => sum + (e.paid
+      ? e.funding?.payments.find((p) => p.member === 'Ahmed')?.amount ?? contributionFor(c)
+      : 0), 0) * 1000) / 1000,
+    contribution: contributionFor(c),
+    goal: circleGoal(c),
+    pot: circleGoal(c),
     progress: c.months ? collectedCount / c.months : 0,
     current,
     nextUnpaid,
