@@ -1,1 +1,1 @@
-- [Funding demo scope](funding-demo.md) — mock funding stays local; each circle has a separate joint account using “protected balance” terminology.
+- [Circle Pay demo decisions](funding-demo.md) — funding stays simulated; goals split equally, use “protected balance,” and ask whether to push project updates.

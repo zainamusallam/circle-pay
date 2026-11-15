@@ -32,3 +32,9 @@ The brand is “Circle Pay.” The first screen should show the name and a rotat
 **Why:** The user explicitly requested the rename, first navigation page, and removal of that duplicate amount.
 
 **How to apply:** Preserve the welcome-entry flow and respect reduced-motion preferences. Keep funding history, protected balances, and contribution figures consistent with goal-based equal shares.
+
+After each project update, remind the user to decide whether to push the changes to GitHub.
+
+**Why:** The user asked to be reminded after project updates.
+
+**How to apply:** Ask whether they want the current changes pushed; do not treat the reminder as automatic permission to push.
