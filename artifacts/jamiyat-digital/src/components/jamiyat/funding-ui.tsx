@@ -1,4 +1,4 @@
-import { CalendarClock, Landmark, Lock, PauseCircle, PlayCircle, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { CalendarClock, Landmark, Lock, PauseCircle, PlayCircle, ShieldAlert } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -156,74 +156,22 @@ export function LinkedAccounts({ api }: { api: CirclesApi }) {
   );
 }
 
-export function ProtectedBalancePanel({ circle, api }: { circle: Circle; api: CirclesApi }) {
-  const v = vaultInfo(circle);
+export function FundingHistoryPanel({ circle, api }: { circle: Circle; api: CirclesApi }) {
   const txs = api.transactions.filter((t) => t.circleId === circle.id).slice().sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  const monthTx = v.entry ? txs.filter((t) => t.month === v.entry!.month) : [];
-  const failed = monthTx.filter((t) => t.kind === 'failed');
-  const paidSet = new Set(v.payments.map((p) => p.member));
-  const pct = v.target ? v.currentHeld / v.target : 0;
 
   return (
-    <section className="rise grid gap-4 lg:grid-cols-[1.1fr_1fr]" style={{ animationDelay: '40ms' }}>
-      <div className="rounded-3xl border-2 border-primary/30 bg-card p-5 sm:p-6" data-testid="section-protected-balance">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-primary"><Lock className="h-3.5 w-3.5" aria-hidden /> Protected balance</p>
-            <p className="num mt-2 text-3xl font-semibold" data-testid="text-vault-held">{fmtKWD(v.held)}</p>
-            <p className="text-xs text-muted-foreground">Total held across all monthly vaults · {v.queuedCount} payouts queued</p>
-            <p className="num mt-1 text-xs text-muted-foreground">{fmtKWD(v.currentHeld)} of {fmtKWD(v.target)} {v.entry ? `for month ${v.entry.month}` : ''}</p>
-          </div>
-          <span className={cn('rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset',
-            v.complete ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
-              : v.queued ? 'bg-teal-50 text-teal-900 ring-teal-300'
-              : !circle.autoDebit ? 'bg-amber-50 text-amber-800 ring-amber-200'
-              : 'bg-muted text-muted-foreground ring-border')} data-testid="text-vault-state">
-            {v.complete ? 'All released' : v.queued ? 'Held, payout queued' : !circle.autoDebit ? 'Auto-debit paused' : v.held > 0 ? 'Held, collecting' : 'Empty'}
-          </span>
-        </div>
-        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-muted">
-          <div className="h-full origin-left rounded-full bg-primary transition-transform duration-700" style={{ transform: `scaleX(${Math.max(0.0001, pct)})` }} />
-        </div>
-        {!v.complete && v.entry && (
-          <>
-            <p className="mt-3 text-sm text-muted-foreground">
-              <span className="num font-semibold text-foreground">{v.paidCount}/{v.total}</span> participants debited.
-              {v.queued ? <> Full pot secured and queued for <b className="text-foreground">{displayMember(v.entry.recipient)}</b>. Funds stay held until the transfer completes.</>
-                : <> Recipient <b className="text-foreground">{displayMember(v.entry.recipient)}</b> receives the pot once the vault is full.</>}
-            </p>
-            <ul className="mt-4 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-              {circle.members.map((m) => {
-                const p = v.payments.find((x) => x.member === m);
-                const f = !paidSet.has(m) && failed.find((t) => t.member === m);
-                return (
-                  <li key={m} className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5 text-xs" data-testid={`receipt-${m}`}>
-                    <Initials name={m} size="sm" highlight={m === 'Ahmed'} />
-                    <span className="min-w-0 flex-1 truncate font-medium">{displayMember(m)}</span>
-                    {p && <span className="num font-semibold" data-testid={`text-receipt-amount-${m}`}>{fmtKWD(p.amount)}</span>}
-                    {p ? <span className="text-right text-primary"><ShieldCheck className="mr-0.5 inline h-3 w-3" aria-hidden /><span className="num">{fmtStamp(p.timestamp)}</span></span>
-                      : f ? <span className="font-semibold text-destructive">Failed</span>
-                      : <span className="text-muted-foreground">Awaiting</span>}
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        )}
-        <SimNote className="mt-4" />
-      </div>
-
+    <section className="rise" style={{ animationDelay: '40ms' }} data-testid="section-funding-history">
       <div className="rounded-3xl border bg-card p-5 sm:p-6">
         <h3 className="font-bold tracking-tight">Funding history</h3>
         <p className="text-xs text-muted-foreground">Debits and queued pots are held. Transfers are released.</p>
         {txs.length === 0 ? (
-          <p className="mt-6 rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">No automated activity yet. Use the demo bar below to run a billing cycle.</p>
+          <p className="mt-6 rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground" data-testid="text-empty-funding-history">No automated funding activity has been recorded for this circle yet.</p>
         ) : (
-          <ol className="mt-4 max-h-80 space-y-2 overflow-y-auto pr-1" data-testid="list-transactions">
+          <ol className="mt-4 max-h-[28rem] space-y-2 overflow-y-auto pr-1 sm:grid sm:grid-cols-2 sm:gap-2 sm:space-y-0" data-testid="list-transactions">
             {txs.map((t) => (
               <li key={t.id} className="flex gap-3 rounded-xl border px-3 py-2 text-xs">
                 <span className={cn('mt-0.5 h-fit shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase',
-                  t.kind === 'transfer' ? 'bg-emerald-100 text-emerald-800' : t.kind === 'failed' ? 'bg-red-100 text-red-800' : t.kind === 'queued' ? 'bg-teal-100 text-teal-900' : 'bg-sky-100 text-sky-800')}>
+                  t.kind === 'transfer' ? 'bg-emerald-100 text-emerald-800' : t.kind === 'failed' ? 'bg-red-100 text-red-800' : t.kind === 'queued' ? 'bg-tertiary/10 text-tertiary' : 'bg-sky-100 text-sky-800')}>
                   {t.kind === 'transfer' ? 'Released' : t.kind === 'queued' ? 'Queued' : t.kind === 'failed' ? 'Failed' : 'Held'}
                 </span>
                 <div className="min-w-0 flex-1">

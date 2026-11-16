@@ -9,7 +9,7 @@ import { circleGoal, circleStats, contributionFor, displayMember, fmtDate, fmtKW
 import type { CirclesApi } from '@/hooks/use-circles';
 import { cn } from '@/lib/utils';
 import { Initials, ProgressBar, StatusBadge } from './bits';
-import { AutoDebitToggle, ProtectedBalancePanel, displayStatus, fmtStamp, hasHeldFunds } from './funding-ui';
+import { AutoDebitToggle, FundingHistoryPanel, displayStatus, fmtStamp, hasHeldFunds } from './funding-ui';
 
 type Props = { circle: Circle; api: CirclesApi; onBack: () => void };
 
@@ -36,7 +36,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
       ) : <span className="text-xs text-muted-foreground">Held, queued</span>;
     }
     if (auto && !e.collected) {
-      return <span className="text-right text-xs text-amber-700" data-testid={`text-partial-${e.month}`}>{e.funding!.payments.length}/{circle.members.length} debited, retry via demo bar</span>;
+      return <span className="text-right text-xs text-amber-700" data-testid={`text-partial-${e.month}`}>{e.funding!.payments.length}/{circle.members.length} debited, funding incomplete</span>;
     }
     if (e.collected) {
       const isLastCollected = !circle.schedule.some((x) => x.month > e.month && x.collected);
@@ -87,11 +87,11 @@ export function CircleDetail({ circle, api, onBack }: Props) {
           <div aria-hidden className="pointer-events-none absolute -right-4 top-10 h-28 w-28 rounded-full border-[14px] border-white/5" />
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary-foreground/70">Savings circle</p>
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl" data-testid="text-circle-title">{circle.name}</h1>
-          <div className="relative mt-5 rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 sm:p-5" data-testid="section-contribution">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-foreground/70">Your monthly contribution</p>
+          <div className="relative mt-5 rounded-2xl bg-tertiary p-4 text-tertiary-foreground shadow-[0_14px_34px_-20px_hsl(var(--tertiary)/0.8)] sm:p-5" data-testid="section-contribution">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-tertiary-foreground/75">Your monthly contribution</p>
             <p className="num mt-1 text-3xl font-semibold sm:text-4xl" data-testid="text-monthly-contribution">{fmtKWD(share)}</p>
-            <p className="num mt-1.5 text-sm text-primary-foreground/80" data-testid="text-contribution-formula">{fmtKWD(goal)} goal / {n} participants = {fmtKWD(share)} per participant per billing cycle</p>
-            {!exact && <p className="mt-1 text-xs text-primary-foreground/65" data-testid="text-rounding-note">Rounded to the nearest fils. Some members pay 1 fils more so each cycle totals exactly {fmtKWD(goal)}.</p>}
+            <p className="num mt-1.5 text-sm text-tertiary-foreground/85" data-testid="text-contribution-formula">{fmtKWD(goal)} goal / {n} participants = {fmtKWD(share)} per participant per billing cycle</p>
+            {!exact && <p className="mt-1 text-xs text-tertiary-foreground/75" data-testid="text-rounding-note">Rounded to the nearest fils. Some members pay 1 fils more so each cycle totals exactly {fmtKWD(goal)}.</p>}
           </div>
           <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-4">
             {[
@@ -123,7 +123,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
 
       <div className="rise rounded-2xl border bg-card px-5 py-4"><AutoDebitToggle circle={circle} onToggle={api.toggleAutoDebit} /></div>
 
-      <ProtectedBalancePanel circle={circle} api={api} />
+      <FundingHistoryPanel circle={circle} api={api} />
 
       <section className="rise" style={{ animationDelay: '80ms' }}>
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -152,7 +152,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
                   <tr key={e.month} data-testid={`row-month-${e.month}`} className={cn('border-t transition-colors', current && 'bg-accent/50')}>
                     <td className="px-5 py-3.5">
                       <span className="num font-semibold">M{e.month}</span>
-                      {current && <span className="ml-2 rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary-foreground">Now</span>}
+                      {current && <span className="ml-2 rounded bg-tertiary px-1.5 py-0.5 text-[10px] font-bold uppercase text-tertiary-foreground">Now</span>}
                     </td>
                     <td className="px-5 py-3.5 text-muted-foreground">{fmtDate(e.date)}</td>
                     <td className="px-5 py-3.5">
