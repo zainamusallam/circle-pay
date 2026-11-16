@@ -45,11 +45,11 @@ Public circles stay open listings until the owner approves requests and every pl
 
 **How to apply:** Keep public listings and requests local to the demo. Only create the active circle and its schedule after the last open place is approved; do not represent requests as real invitations or real users.
 
-Private-circle creators should not type participant names. They share an invite code or link, and each invitee enters their own name to claim an open place.
+Private-circle creators should not type participant names. They share an invite code or link, and each invitee enters their own name to claim an open place. Circle Pay should start a Supabase anonymous session instead of showing an email/password sign-in page.
 
-**Why:** The user corrected the create-circle flow and asked for a cleaner invite-based way to add participants.
+**Why:** The user requested invite-based joining without a sign-in page and confirmed the automatic session opens.
 
-**How to apply:** Keep creator setup focused on circle details and participant count. The current demo stores invite state in the browser; do not imply cross-device synchronization unless Supabase is connected.
+**How to apply:** Keep creator setup focused on circle details and participant count. Cross-device joining requires a valid Supabase publishable key and anonymous sign-ins enabled. Anonymous demo data is tied to its browser session and is not recoverable after clearing browser data unless identity linking is added.
 
 The web app must be usable on phone screens as well as laptops.
 
