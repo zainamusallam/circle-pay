@@ -38,7 +38,7 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const reset = () => { setValues(blank()); setErrors({}); setPrompt(''); setResult(null); };
+  const reset = () => { setValues(blank()); setErrors({}); setPrompt(''); setResult(null); setSubmitError(''); };
   const set = (k: keyof Values, v: string) => {
     setValues((p) => ({ ...p, [k]: v }));
     setErrors((e) => ({

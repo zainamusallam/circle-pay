@@ -116,7 +116,7 @@ export function SupabaseSetupNotice({ onBack }: { onBack: () => void }) {
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
         <h1 className="text-2xl font-extrabold">Supabase setup needs one value</h1>
-        <p className="mt-2 text-sm text-muted-foreground">The database is connected, but this app also needs its Supabase publishable key in Replit Secrets as <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>. Never use a service-role or secret key in the browser.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Supabase is set up for Circle Pay, but the app also needs its publishable key in Replit Secrets as <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>. Never use a service-role or secret key in the browser.</p>
       </section>
     </main>
   );

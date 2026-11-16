@@ -77,7 +77,7 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, onJoinInvite, 
           </Button>
         </div>
         {inviteError && <p role="alert" className="mt-2 text-sm font-medium text-destructive" data-testid="text-invite-error">{inviteError}</p>}
-        <p className="mt-3 text-xs text-muted-foreground">Demo only: invite codes are saved in the creator’s browser and do not sync across devices yet.</p>
+        <p className="mt-3 text-xs text-muted-foreground">The circle and invite code sync through Supabase. Contributions and balances remain simulated—no real money moves.</p>
       </form>
 
       <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6" aria-label="Search circles">

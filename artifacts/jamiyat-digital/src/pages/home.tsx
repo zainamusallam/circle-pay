@@ -159,7 +159,7 @@ export default function Home() {
         <Logo onClick={toWelcome} />
         <div className="flex items-center gap-1">
           <button onClick={resetDemo} aria-label="Reset demo data" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" data-testid="button-reset-demo-mobile"><RotateCcw className="h-4 w-4" /></button>
-          <button onClick={() => { void auth.signOut(); }} aria-label="Sign out" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" data-testid="button-sign-out-mobile"><LogOut className="h-4 w-4" /></button>
+          <button onClick={() => { void auth.signOut().catch((error) => toast({ title: 'Could not sign out', description: error instanceof Error ? error.message : 'Try again.' })); }} aria-label="Sign out" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" data-testid="button-sign-out-mobile"><LogOut className="h-4 w-4" /></button>
           <Button size="sm" onClick={() => setOpen(true)} className="h-11 rounded-xl" data-testid="button-new-circle-mobile"><Plus className="mr-1 h-4 w-4" /> New</Button>
         </div>
       </header>
