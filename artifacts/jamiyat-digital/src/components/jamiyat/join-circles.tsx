@@ -1,26 +1,43 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ArrowLeft, ArrowRight, CalendarDays, Search, Target, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fmtKWD } from '@/lib/circles';
 import { findSimilarCircles, getDiscoverableCircles, type DiscoverableCircle } from '@/lib/discover-circles';
 import type { PublicCircle } from '@/lib/public-circles';
+import type { Circle } from '@/lib/circles';
 
-export function JoinCircles({ onBack, onRequest, onCancelRequest, requestedIds, publicCircles }: {
+export function JoinCircles({ onBack, onRequest, onCancelRequest, onJoinInvite, requestedIds, publicCircles }: {
   onBack: () => void;
   onRequest: (circle: DiscoverableCircle, label: string) => void;
   onCancelRequest: (circle: DiscoverableCircle, label: string) => void;
+  onJoinInvite: (code: string, memberName: string) => Circle | null;
   requestedIds: string[];
   publicCircles: PublicCircle[];
 }) {
   const [goal, setGoal] = useState('');
   const [startDate, setStartDate] = useState('');
+  const [inviteCode, setInviteCode] = useState(() => new URLSearchParams(window.location.search).get('invite') ?? '');
+  const [memberName, setMemberName] = useState('');
+  const [inviteError, setInviteError] = useState('');
   const listings = useMemo(() => [...getDiscoverableCircles(), ...publicCircles], [publicCircles]);
   const results = findSimilarCircles(listings, {
     goal: goal.trim() ? Number(goal) : undefined,
     startDate: startDate || undefined,
   });
   const hasSearch = goal.trim().length > 0 || startDate.length > 0;
+  const submitInvite = (event: FormEvent) => {
+    event.preventDefault();
+    const joined = onJoinInvite(inviteCode, memberName);
+    if (!joined) {
+      setInviteError('That code is invalid, already full, or this name is already in the circle.');
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete('invite');
+    window.history.replaceState({}, '', url);
+    setInviteError('');
+  };
 
   return (
     <div className="space-y-7">
@@ -32,6 +49,28 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, requestedIds, 
         <h1 className="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl">Join a circle</h1>
         <p className="mt-2 max-w-xl text-muted-foreground">Find a demo circle with a savings goal and start date that work for you. Requests stay pending here and don’t add a circle yet.</p>
       </header>
+
+      <form onSubmit={submitInvite} className="rounded-3xl border border-primary/15 bg-accent/40 p-5 sm:p-6" aria-label="Join by private invite">
+        <div className="mb-4">
+          <h2 className="font-bold">Have a private invite?</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Enter the code from your circle owner. You add your own name—no member list for the creator to fill in.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <label className="block space-y-1.5">
+            <span className="text-sm font-semibold">Invite code</span>
+            <input value={inviteCode} onChange={(event) => { setInviteCode(event.target.value.toUpperCase()); setInviteError(''); }} placeholder="CP-ABC123" autoCapitalize="characters" className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="input-invite-code" />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-sm font-semibold">Your name</span>
+            <input value={memberName} onChange={(event) => { setMemberName(event.target.value); setInviteError(''); }} placeholder="Enter your name" maxLength={40} className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="input-invite-member-name" />
+          </label>
+          <Button type="submit" className="h-11 rounded-xl" disabled={!inviteCode.trim() || !memberName.trim()} data-testid="button-join-private-invite">
+            Join private circle <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
+          </Button>
+        </div>
+        {inviteError && <p role="alert" className="mt-2 text-sm font-medium text-destructive" data-testid="text-invite-error">{inviteError}</p>}
+        <p className="mt-3 text-xs text-muted-foreground">Demo only: invite codes are saved in the creator’s browser and do not sync across devices yet.</p>
+      </form>
 
       <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6" aria-label="Search circles">
         <div className="mb-4 flex items-start gap-3">

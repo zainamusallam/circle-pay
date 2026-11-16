@@ -21,6 +21,7 @@ export type Circle = {
   months: number;
   startDate: string;
   members: string[];
+  inviteCode?: string;
   schedule: MonthEntry[];
   autoDebit: boolean;
 };
@@ -57,7 +58,7 @@ export function contributionFor(c: Circle, member = 'Ahmed'): number {
 }
 
 export function buildCircle(input: {
-  name: string; amount?: number; goal?: number; months: number; startDate: string; members?: string[];
+  name: string; amount?: number; goal?: number; months: number; startDate: string; members?: string[]; inviteCode?: string;
 }): Circle {
   const members = input.members ?? Array.from({ length: input.months }, (_, i) => MEMBER_POOL[i % MEMBER_POOL.length] + (i >= MEMBER_POOL.length ? ` ${Math.floor(i / MEMBER_POOL.length) + 1}` : ''));
   const start = parseISO(input.startDate);
@@ -73,6 +74,7 @@ export function buildCircle(input: {
     months: members.length,
     startDate: input.startDate,
     members,
+    inviteCode: input.inviteCode,
     autoDebit: true,
     schedule: members.map((m, i) => ({
       month: i + 1,

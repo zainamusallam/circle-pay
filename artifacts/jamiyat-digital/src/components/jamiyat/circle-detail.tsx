@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, HandCoins, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Copy, HandCoins, RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -19,6 +19,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
   const goal = circleGoal(circle);
   const pot = goal;
   const n = circle.members.length;
+  const openSpots = circle.members.filter((member) => member.startsWith('Open spot ')).length;
   const share = contributionFor(circle);
   const exact = Math.round(goal * 1000) % n === 0;
 
@@ -122,6 +123,32 @@ export function CircleDetail({ circle, api, onBack }: Props) {
       </section>
 
       <div className="rise rounded-2xl border bg-card px-5 py-4"><AutoDebitToggle circle={circle} onToggle={api.toggleAutoDebit} /></div>
+
+      {circle.inviteCode && (
+        <section className="rise flex flex-col gap-4 rounded-2xl border border-tertiary/20 bg-tertiary/5 p-5 sm:flex-row sm:items-center sm:justify-between" data-testid="section-private-invite">
+          <div>
+            <h2 className="font-bold">Invite participants</h2>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">Share this code or link. Each participant enters their own name when joining; you don’t need to type names for them.</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">{openSpots} of {n} invite spots still open</p>
+            <p className="mt-2 font-mono text-lg font-bold tracking-wider text-foreground" data-testid="text-private-invite-code">{circle.inviteCode}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Local demo only. Invites currently work in this browser; cross-device sharing needs Supabase.</p>
+          </div>
+          <Button type="button" variant="outline" className="h-11 shrink-0 rounded-xl" onClick={async () => {
+            const inviteUrl = new URL(window.location.href);
+            inviteUrl.search = '';
+            inviteUrl.hash = '';
+            inviteUrl.searchParams.set('invite', circle.inviteCode!);
+            try {
+              await navigator.clipboard.writeText(inviteUrl.toString());
+              toast({ title: 'Invite link copied', description: 'Participants can open the link and enter their own name.' });
+            } catch {
+              toast({ title: 'Share the invite code', description: `Copy ${circle.inviteCode} and send it to your participants.` });
+            }
+          }} data-testid="button-copy-invite-link">
+            <Copy className="mr-2 h-4 w-4" /> Copy invite link
+          </Button>
+        </section>
+      )}
 
       <section className="rise" style={{ animationDelay: '80ms' }}>
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">

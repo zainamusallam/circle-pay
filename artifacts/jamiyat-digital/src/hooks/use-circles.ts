@@ -59,6 +59,29 @@ export function useCircles() {
     });
     return circle;
   }, []);
+  const joinByInviteCode = useCallback((code: string, memberName: string) => {
+    const normalizedCode = code.trim().toUpperCase();
+    const normalizedName = memberName.trim();
+    const circle = state.circles.find((item) => item.inviteCode?.toUpperCase() === normalizedCode);
+    if (!circle || !normalizedName) return null;
+    if (circle.members.some((member) => member.toLocaleLowerCase() === normalizedName.toLocaleLowerCase())) return null;
+    const openSpot = circle.members.find((member) => member.startsWith('Open spot '));
+    if (!openSpot) return null;
+    const updatedCircle = {
+      ...circle,
+      members: circle.members.map((member) => member === openSpot ? normalizedName : member),
+      schedule: circle.schedule.map((entry) => entry.recipient === openSpot ? { ...entry, recipient: normalizedName } : entry),
+    };
+    setState((current) => ({
+      ...current,
+      circles: current.circles.map((item) => item.id === circle.id ? updatedCircle : item),
+      wallets: ensureWallets(
+        current.circles.map((item) => item.id === circle.id ? updatedCircle : item),
+        current.wallets,
+      ),
+    }));
+    return updatedCircle;
+  }, [state.circles]);
   const removeCircle = useCallback((id: string) => {
     // Do not allow deletion to silently discard held simulated funds.
     setState((s) => ({ ...s, circles: s.circles.filter((c) =>
@@ -75,7 +98,7 @@ export function useCircles() {
 
   return {
     ...state, storageError, markPaid, undoPaid, markCollected, undoCollected,
-    addCircle, removeCircle, toggleAutoDebit, simulateNextMonth, reset,
+    addCircle, joinByInviteCode, removeCircle, toggleAutoDebit, simulateNextMonth, reset,
   };
 }
 export type CirclesApi = ReturnType<typeof useCircles>;

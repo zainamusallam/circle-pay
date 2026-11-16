@@ -45,6 +45,12 @@ Public circles stay open listings until the owner approves requests and every pl
 
 **How to apply:** Keep public listings and requests local to the demo. Only create the active circle and its schedule after the last open place is approved; do not represent requests as real invitations or real users.
 
+Private-circle creators should not type participant names. They share an invite code or link, and each invitee enters their own name to claim an open place.
+
+**Why:** The user corrected the create-circle flow and asked for a cleaner invite-based way to add participants.
+
+**How to apply:** Keep creator setup focused on circle details and participant count. The current demo stores invite state in the browser; do not imply cross-device synchronization unless Supabase is connected.
+
 The web app must be usable on phone screens as well as laptops.
 
 **Why:** The user explicitly asked for phone support, not just a laptop layout.

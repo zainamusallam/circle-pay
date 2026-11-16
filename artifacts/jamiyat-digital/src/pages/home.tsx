@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCircles } from '@/hooks/use-circles';
 import { usePublicCircles } from '@/hooks/use-public-circles';
-import { circleGoal, contributionFor, fmtKWD } from '@/lib/circles';
+import { circleGoal, fmtKWD } from '@/lib/circles';
 import { cn } from '@/lib/utils';
 import { AllCircles, Dashboard } from '@/components/jamiyat/dashboard';
 import { CircleDetail } from '@/components/jamiyat/circle-detail';
@@ -39,6 +39,7 @@ export default function Home() {
   const [view, setView] = useState<View>({ kind: 'dashboard' });
   const [open, setOpen] = useState(false);
   const [entered, setEntered] = useState(false);
+  const [inviteOnEntry] = useState(() => new URLSearchParams(window.location.search).has('invite'));
 
   const go = (v: View) => { setView(v); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const circle = view.kind === 'circle' ? api.circles.find((c) => c.id === view.id) : undefined;
@@ -99,7 +100,7 @@ export default function Home() {
   };
 
   const toWelcome = () => { setOpen(false); setEntered(false); window.scrollTo({ top: 0 }); };
-  if (!entered) return <Welcome onEnter={() => { setEntered(true); setView({ kind: 'dashboard' }); window.scrollTo({ top: 0 }); }} />;
+  if (!entered) return <Welcome onEnter={() => { setEntered(true); setView(inviteOnEntry ? { kind: 'join' } : { kind: 'dashboard' }); window.scrollTo({ top: 0 }); }} />;
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -178,6 +179,14 @@ export default function Home() {
               onBack={() => go({ kind: 'dashboard' })}
               onRequest={requestCircle}
               onCancelRequest={cancelCircleRequest}
+              onJoinInvite={(code, memberName) => {
+                const joined = api.joinByInviteCode(code, memberName);
+                if (joined) {
+                  toast({ title: `You joined ${joined.name}`, description: 'Your name was added to an open participant spot in this demo.' });
+                  go({ kind: 'circle', id: joined.id });
+                }
+                return joined;
+              }}
               requestedIds={[
                 ...joinRequests.requestedIds,
                 ...publicCircles.circles.filter((circle) => circle.requests.length > 0).map((circle) => circle.id),
@@ -217,7 +226,9 @@ export default function Home() {
         open={open}
         onOpenChange={setOpen}
         onCreate={(v) => {
-          const members = ['Ahmed', ...v.members];
+          const members = v.visibility === 'public'
+            ? ['Ahmed']
+            : ['Ahmed', ...Array.from({ length: v.months - 1 }, (_, index) => `Open spot ${index + 1}`)];
           if (v.visibility === 'public') {
             const listing = publicCircles.create({
               name: v.name,
@@ -234,9 +245,9 @@ export default function Home() {
             go({ kind: 'circles' });
             return;
           }
-          const c = api.addCircle({ ...v, members });
+          const c = api.addCircle({ ...v, members, inviteCode: v.inviteCode });
           setOpen(false);
-          toast({ title: `${c.name} created`, description: `${c.months}-month rotation, goal ${fmtKWD(circleGoal(c))}, ${fmtKWD(contributionFor(c))} each per month.` });
+          toast({ title: `${c.name} created`, description: `Share the invite code with ${c.months - 1} participant${c.months === 2 ? '' : 's'} so they can add their own names.` });
           go({ kind: 'circle', id: c.id });
         }}
       />
