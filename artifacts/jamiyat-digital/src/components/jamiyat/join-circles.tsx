@@ -4,16 +4,18 @@ import { ArrowLeft, ArrowRight, CalendarDays, Search, Target, UsersRound } from 
 import { Button } from '@/components/ui/button';
 import { fmtKWD } from '@/lib/circles';
 import { findSimilarCircles, getDiscoverableCircles, type DiscoverableCircle } from '@/lib/discover-circles';
+import type { PublicCircle } from '@/lib/public-circles';
 
-export function JoinCircles({ onBack, onRequest, onCancelRequest, requestedIds }: {
+export function JoinCircles({ onBack, onRequest, onCancelRequest, requestedIds, publicCircles }: {
   onBack: () => void;
   onRequest: (circle: DiscoverableCircle, label: string) => void;
   onCancelRequest: (circle: DiscoverableCircle, label: string) => void;
   requestedIds: string[];
+  publicCircles: PublicCircle[];
 }) {
   const [goal, setGoal] = useState('');
   const [startDate, setStartDate] = useState('');
-  const listings = useMemo(() => getDiscoverableCircles(), []);
+  const listings = useMemo(() => [...getDiscoverableCircles(), ...publicCircles], [publicCircles]);
   const results = findSimilarCircles(listings, {
     goal: goal.trim() ? Number(goal) : undefined,
     startDate: startDate || undefined,
@@ -109,7 +111,7 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, requestedIds }
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate font-bold tracking-tight">{label}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">Demo rotation with one place available.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Demo rotation with {circle.openSpots} open {circle.openSpots === 1 ? 'place' : 'places'}.</p>
                   </div>
                   {circle.similarity !== null && (
                     <span className="shrink-0 rounded-full bg-tertiary/10 px-2.5 py-1 text-xs font-bold text-tertiary" data-testid={`text-match-${circle.id}`}>
@@ -118,7 +120,7 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, requestedIds }
                   )}
                 </div>
 
-                <div className="mt-5 grid grid-cols-3 gap-2 rounded-xl bg-muted/60 p-3">
+                <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl bg-muted/60 p-3 sm:grid-cols-3">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Goal</p>
                     <p className="num mt-1 text-sm font-bold">{fmtKWD(circle.goal)}</p>
@@ -140,10 +142,10 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, requestedIds }
                   {requested ? (
                     <div className="flex items-center gap-2" role="status" data-testid={`status-request-${circle.id}`}>
                       <span className="rounded-full bg-tertiary/10 px-3 py-1.5 text-xs font-semibold text-tertiary">Request pending</span>
-                      <Button type="button" variant="ghost" onClick={() => onCancelRequest(circle, label)} className="h-9 rounded-xl text-muted-foreground" data-testid={`button-cancel-request-${circle.id}`}>Cancel</Button>
+                      <Button type="button" variant="ghost" onClick={() => onCancelRequest(circle, label)} className="h-10 rounded-xl text-muted-foreground md:h-9" data-testid={`button-cancel-request-${circle.id}`}>Cancel</Button>
                     </div>
                   ) : (
-                    <Button type="button" onClick={() => onRequest(circle, label)} className="h-10 rounded-xl bg-tertiary text-tertiary-foreground hover:bg-tertiary/90" data-testid={`button-request-${circle.id}`}>
+                    <Button type="button" onClick={() => onRequest(circle, label)} className="h-11 rounded-xl bg-tertiary text-tertiary-foreground hover:bg-tertiary/90 md:h-10" data-testid={`button-request-${circle.id}`}>
                       Request to join <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
                     </Button>
                   )}

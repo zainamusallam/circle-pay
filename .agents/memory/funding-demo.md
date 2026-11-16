@@ -38,3 +38,15 @@ After each project update, remind the user to decide whether to push the changes
 **Why:** The user asked to be reminded after project updates.
 
 **How to apply:** Ask whether they want the current changes pushed; do not treat the reminder as automatic permission to push.
+
+Public circles stay open listings until the owner approves requests and every place is filled. Pending requests are not members and do not enter the rotation.
+
+**Why:** The user chose owner approval for public-circle requests, and the app’s rotation requires a confirmed full roster.
+
+**How to apply:** Keep public listings and requests local to the demo. Only create the active circle and its schedule after the last open place is approved; do not represent requests as real invitations or real users.
+
+The web app must be usable on phone screens as well as laptops.
+
+**Why:** The user explicitly asked for phone support, not just a laptop layout.
+
+**How to apply:** Preserve responsive navigation, adequate touch targets, scrollable dialogs, and compact mobile ledger/search cards; check narrow viewports when changing app screens.

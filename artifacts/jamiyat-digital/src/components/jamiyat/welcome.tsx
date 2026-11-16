@@ -31,7 +31,6 @@ export function Welcome({ onEnter }: { onEnter: () => void }) {
         <button
           type="button"
           onClick={onEnter}
-          autoFocus
           className="rise group mt-10 inline-flex h-14 items-center gap-2.5 rounded-2xl bg-primary px-8 text-base font-bold text-primary-foreground shadow-lg shadow-primary/15 transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-tertiary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           style={{ animationDelay: '260ms' }}
           data-testid="button-enter-app"

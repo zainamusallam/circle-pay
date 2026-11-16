@@ -1,8 +1,10 @@
 import { ArrowUpRight, CalendarClock, CircleDollarSign, Layers, Plus, Search, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { circleGoal, circleStats, displayMember, fmtDate, fmtKWD, type Circle } from '@/lib/circles';
+import type { PublicCircle } from '@/lib/public-circles';
 import { Initials, ProgressBar } from './bits';
 import { AutoDebitToggle } from './funding-ui';
+import { PublicCircleManagement } from './public-circle-management';
 
 type Toggle = (id: string, enabled: boolean) => void;
 
@@ -146,20 +148,35 @@ export function EmptyCircles({ onNew }: { onNew: () => void }) {
   );
 }
 
-export function AllCircles({ circles, onOpen, onNew, onJoin, onToggleAuto }: { circles: Circle[]; onOpen: (id: string) => void; onNew: () => void; onJoin: () => void; onToggleAuto: Toggle }) {
+export function AllCircles({ circles, publicCircles, onOpen, onNew, onJoin, onToggleAuto, onApproveRequest, onDeclineRequest }: {
+  circles: Circle[];
+  publicCircles: PublicCircle[];
+  onOpen: (id: string) => void;
+  onNew: () => void;
+  onJoin: () => void;
+  onToggleAuto: Toggle;
+  onApproveRequest: (circle: PublicCircle, requestId: string) => void;
+  onDeclineRequest: (circle: PublicCircle, requestId: string) => void;
+}) {
   return (
     <div className="space-y-6">
-      <header className="rise flex items-end justify-between gap-4">
+      <header className="rise flex flex-col items-stretch gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">My Circles</h1>
-          <p className="mt-1 text-muted-foreground">{circles.length} circle{circles.length === 1 ? '' : 's'}, active and completed.</p>
+          <p className="mt-1 text-muted-foreground">{circles.length} active or completed · {publicCircles.length} public listing{publicCircles.length === 1 ? '' : 's'}</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={onJoin} variant="outline" className="rounded-xl border-tertiary/30 text-tertiary hover:bg-tertiary/10 hover:text-tertiary" data-testid="button-join-circle-list"><Search className="mr-1.5 h-4 w-4" /> Join</Button>
-          <Button onClick={onNew} className="rounded-xl" data-testid="button-new-circle-list"><Plus className="mr-1.5 h-4 w-4" /> Create</Button>
+        <div className="flex gap-2 sm:w-auto">
+          <Button onClick={onJoin} variant="outline" className="flex-1 rounded-xl border-tertiary/30 text-tertiary hover:bg-tertiary/10 hover:text-tertiary sm:flex-none" data-testid="button-join-circle-list"><Search className="mr-1.5 h-4 w-4" /> Join</Button>
+          <Button onClick={onNew} className="flex-1 rounded-xl sm:flex-none" data-testid="button-new-circle-list"><Plus className="mr-1.5 h-4 w-4" /> Create</Button>
         </div>
       </header>
-      {circles.length === 0 ? <EmptyCircles onNew={onNew} /> : (
+      <PublicCircleManagement circles={publicCircles} onApprove={onApproveRequest} onDecline={onDeclineRequest} />
+      {circles.length === 0 && publicCircles.length === 0 ? <EmptyCircles onNew={onNew} /> : circles.length === 0 ? (
+        <div className="rounded-2xl border border-dashed bg-card/60 px-6 py-8 text-center">
+          <h2 className="font-bold">No active circles yet</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Your public listing will move here once all member places are approved and filled.</p>
+        </div>
+      ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {circles.map((c, i) => <CircleCard key={c.id} circle={c} index={i} onOpen={() => onOpen(c.id)} onToggleAuto={onToggleAuto} />)}
         </div>

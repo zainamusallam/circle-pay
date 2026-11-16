@@ -3,6 +3,7 @@ import { CreditCard, LayoutGrid, Layers, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCircles } from '@/hooks/use-circles';
+import { usePublicCircles } from '@/hooks/use-public-circles';
 import { circleGoal, contributionFor, fmtKWD } from '@/lib/circles';
 import { cn } from '@/lib/utils';
 import { AllCircles, Dashboard } from '@/components/jamiyat/dashboard';
@@ -14,12 +15,13 @@ import { LinkedAccounts } from '@/components/jamiyat/funding-ui';
 import { JoinCircles } from '@/components/jamiyat/join-circles';
 import type { DiscoverableCircle } from '@/lib/discover-circles';
 import { useJoinRequests } from '@/hooks/use-join-requests';
+import type { PublicCircle } from '@/lib/public-circles';
 
 type View = { kind: 'dashboard' } | { kind: 'circles' } | { kind: 'accounts' } | { kind: 'join' } | { kind: 'circle'; id: string };
 
 function Logo({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} aria-label="Circle Pay, back to welcome screen" className="flex items-center gap-2.5 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-brand-home">
+    <button type="button" onClick={onClick} aria-label="Circle Pay, back to welcome screen" className="flex min-h-11 items-center gap-2.5 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-brand-home">
       <CirclePayMark size={36} />
       <div className="leading-tight">
         <p className="text-[15px] font-extrabold tracking-tight">Circle Pay</p>
@@ -32,6 +34,7 @@ function Logo({ onClick }: { onClick: () => void }) {
 export default function Home() {
   const api = useCircles();
   const joinRequests = useJoinRequests();
+  const publicCircles = usePublicCircles();
   const { toast } = useToast();
   const [view, setView] = useState<View>({ kind: 'dashboard' });
   const [open, setOpen] = useState(false);
@@ -51,15 +54,48 @@ export default function Home() {
     toast({ title: enabled ? 'Auto-debit resumed' : 'Auto-debit paused', description: enabled ? 'This circle joins the next simulated billing run.' : 'The simulator will skip this circle.' });
   };
 
-  const resetDemo = () => { api.reset(); joinRequests.reset(); go({ kind: 'dashboard' }); toast({ title: 'Demo reset', description: 'Sample circles, mock wallets, join requests and history restored.' }); };
+  const resetDemo = () => { api.reset(); joinRequests.reset(); publicCircles.reset(); go({ kind: 'dashboard' }); toast({ title: 'Demo reset', description: 'Sample circles, mock wallets, public listings, requests and history restored.' }); };
 
   const requestCircle = (listing: DiscoverableCircle, label: string) => {
+    if (publicCircles.circles.some((circle) => circle.id === listing.id)) {
+      publicCircles.request(listing.id);
+      toast({ title: 'Request sent', description: `Your request for ${label} is waiting for the circle owner’s approval.` });
+      return;
+    }
     joinRequests.request(listing.id);
     toast({ title: 'Request sent', description: `Your request for ${label} is pending in this demo.` });
   };
   const cancelCircleRequest = (listing: DiscoverableCircle, label: string) => {
+    if (publicCircles.circles.some((circle) => circle.id === listing.id)) {
+      publicCircles.cancelRequest(listing.id);
+      toast({ title: 'Request cancelled', description: `Your request for ${label} was withdrawn.` });
+      return;
+    }
     joinRequests.cancel(listing.id);
     toast({ title: 'Request cancelled', description: `Your request for ${label} was withdrawn.` });
+  };
+
+  const approvePublicRequest = (circle: PublicCircle, requestId: string) => {
+    const completed = publicCircles.approveRequest(circle.id, requestId);
+    if (completed) {
+      const active = api.addCircle({
+        name: completed.name,
+        goal: completed.goal,
+        months: completed.capacity,
+        startDate: completed.startDate,
+        members: completed.members,
+      });
+      toast({ title: `${active.name} is ready`, description: 'All places are approved. The circle is now active with its full rotation.' });
+      go({ kind: 'circle', id: active.id });
+      return;
+    }
+    const remaining = Math.max(0, circle.capacity - circle.members.length - 1);
+    toast({ title: 'Request approved', description: remaining ? `${remaining} more ${remaining === 1 ? 'place is' : 'places are'} needed before the rotation starts.` : 'The circle is now full.' });
+  };
+
+  const declinePublicRequest = (circle: PublicCircle, requestId: string) => {
+    publicCircles.declineRequest(circle.id, requestId);
+    toast({ title: 'Request declined', description: `The request for ${circle.name} was declined.` });
   };
 
   const toWelcome = () => { setOpen(false); setEntered(false); window.scrollTo({ top: 0 }); };
@@ -109,8 +145,8 @@ export default function Home() {
       <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/85 px-4 py-3 backdrop-blur lg:hidden">
         <Logo onClick={toWelcome} />
         <div className="flex items-center gap-1">
-          <button onClick={resetDemo} aria-label="Reset demo data" className="rounded-lg p-2 text-muted-foreground hover:bg-muted" data-testid="button-reset-demo-mobile"><RotateCcw className="h-4 w-4" /></button>
-          <Button size="sm" onClick={() => setOpen(true)} className="rounded-xl" data-testid="button-new-circle-mobile"><Plus className="mr-1 h-4 w-4" /> New</Button>
+          <button onClick={resetDemo} aria-label="Reset demo data" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" data-testid="button-reset-demo-mobile"><RotateCcw className="h-4 w-4" /></button>
+          <Button size="sm" onClick={() => setOpen(true)} className="h-11 rounded-xl" data-testid="button-new-circle-mobile"><Plus className="mr-1 h-4 w-4" /> New</Button>
         </div>
       </header>
 
@@ -126,14 +162,27 @@ export default function Home() {
             <Dashboard circles={api.circles} onOpen={(id) => go({ kind: 'circle', id })} onNew={() => setOpen(true)} onJoin={() => go({ kind: 'join' })} onSeeAll={() => go({ kind: 'circles' })} onToggleAuto={toggleAuto} />
           )}
           {view.kind === 'circles' && (
-            <AllCircles circles={api.circles} onOpen={(id) => go({ kind: 'circle', id })} onNew={() => setOpen(true)} onJoin={() => go({ kind: 'join' })} onToggleAuto={toggleAuto} />
+            <AllCircles
+              circles={api.circles}
+              publicCircles={publicCircles.circles}
+              onOpen={(id) => go({ kind: 'circle', id })}
+              onNew={() => setOpen(true)}
+              onJoin={() => go({ kind: 'join' })}
+              onToggleAuto={toggleAuto}
+              onApproveRequest={approvePublicRequest}
+              onDeclineRequest={declinePublicRequest}
+            />
           )}
           {view.kind === 'join' && (
             <JoinCircles
               onBack={() => go({ kind: 'dashboard' })}
               onRequest={requestCircle}
               onCancelRequest={cancelCircleRequest}
-              requestedIds={joinRequests.requestedIds}
+              requestedIds={[
+                ...joinRequests.requestedIds,
+                ...publicCircles.circles.filter((circle) => circle.requests.length > 0).map((circle) => circle.id),
+              ]}
+              publicCircles={publicCircles.circles}
             />
           )}
           {view.kind === 'accounts' && (
@@ -168,7 +217,24 @@ export default function Home() {
         open={open}
         onOpenChange={setOpen}
         onCreate={(v) => {
-          const c = api.addCircle(v);
+          const members = ['Ahmed', ...v.members];
+          if (v.visibility === 'public') {
+            const listing = publicCircles.create({
+              name: v.name,
+              goal: v.goal,
+              capacity: v.months,
+              startDate: v.startDate,
+              members,
+            });
+            setOpen(false);
+            toast({
+              title: 'Public circle listed',
+              description: `${listing.capacity - listing.members.length} places are open. Requests need your approval before the rotation begins.`,
+            });
+            go({ kind: 'circles' });
+            return;
+          }
+          const c = api.addCircle({ ...v, members });
           setOpen(false);
           toast({ title: `${c.name} created`, description: `${c.months}-month rotation, goal ${fmtKWD(circleGoal(c))}, ${fmtKWD(contributionFor(c))} each per month.` });
           go({ kind: 'circle', id: c.id });

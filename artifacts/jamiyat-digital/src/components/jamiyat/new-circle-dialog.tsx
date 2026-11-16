@@ -5,18 +5,30 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { fmtKWD, parsePrompt, type ParseResult } from '@/lib/circles';
 
-type Values = { name: string; goal: string; months: string; startDate: string };
+type Visibility = 'private' | 'public';
+type Values = { name: string; goal: string; months: string; startDate: string; members: string; visibility: Visibility };
 type Errors = Partial<Record<keyof Values, string>>;
 
 const EXAMPLE = 'Create a 5-month circle for 40 dinars each starting next month';
-const blank = (): Values => ({ name: '', goal: '', months: '6', startDate: format(addMonths(startOfMonth(new Date()), 1), 'yyyy-MM-dd') });
+const blank = (): Values => ({
+  name: '',
+  goal: '',
+  months: '6',
+  startDate: format(addMonths(startOfMonth(new Date()), 1), 'yyyy-MM-dd'),
+  members: '',
+  visibility: 'private',
+});
+
+const parseMemberNames = (value: string) =>
+  value.split(/[,\n]+/).map((name) => name.trim()).filter(Boolean);
 
 export function NewCircleDialog({ open, onOpenChange, onCreate }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  onCreate: (v: { name: string; goal: number; months: number; startDate: string }) => void;
+  onCreate: (v: { name: string; goal: number; months: number; startDate: string; members: string[]; visibility: Visibility }) => void;
 }) {
   const [values, setValues] = useState<Values>(blank);
   const [errors, setErrors] = useState<Errors>({});
@@ -24,7 +36,14 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
   const [result, setResult] = useState<ParseResult | null>(null);
 
   const reset = () => { setValues(blank()); setErrors({}); setPrompt(''); setResult(null); };
-  const set = (k: keyof Values, v: string) => { setValues((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [k]: undefined })); };
+  const set = (k: keyof Values, v: string) => {
+    setValues((p) => ({ ...p, [k]: v }));
+    setErrors((e) => ({
+      ...e,
+      [k]: undefined,
+      ...(['members', 'months', 'visibility'].includes(k) ? { members: undefined } : {}),
+    }));
+  };
 
   const runAssistant = () => {
     if (!prompt.trim()) { setResult({ ok: false, fields: {}, understood: [], missing: ['a description of your circle'] }); return; }
@@ -38,7 +57,7 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
         const goal = r.fields.amount != null && Number.isInteger(m) && m >= 2 && m <= 24
           ? String(Math.round(r.fields.amount * m * 1000) / 1000)
           : p.goal;
-        return { name: r.fields.name ?? p.name, goal, months, startDate: r.fields.startDate ?? p.startDate };
+        return { ...p, name: r.fields.name ?? p.name, goal, months, startDate: r.fields.startDate ?? p.startDate };
       });
       setErrors({});
     }
@@ -58,9 +77,18 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
     else if (goal > 1000000) e.goal = 'Maximum goal is 1,000,000 KWD.';
     else if (monthsOk && Math.round(goal * 1000) < months) e.goal = `Goal must give each of ${months} members at least 1 fils.`;
     if (!values.startDate || Number.isNaN(Date.parse(values.startDate))) e.startDate = 'Pick a valid start date.';
+    const members = parseMemberNames(values.members);
+    const uniqueMembers = new Set(members.map((name) => name.toLocaleLowerCase()));
+    if (uniqueMembers.size !== members.length) e.members = 'Remove duplicate member names.';
+    else if (members.some((name) => ['ahmed', 'user'].includes(name.toLocaleLowerCase()))) e.members = 'You are already included automatically; enter other members only.';
+    else if (monthsOk && values.visibility === 'private' && members.length !== months - 1) {
+      e.members = `Add exactly ${months - 1} other member${months === 2 ? '' : 's'} for a private circle, or choose Public.`;
+    } else if (monthsOk && values.visibility === 'public' && members.length >= months - 1) {
+      e.members = 'A public circle needs at least one open place. Choose Private if all members are known.';
+    }
     setErrors(e);
     if (Object.keys(e).length) return;
-    onCreate({ name: values.name.trim(), goal, months, startDate: values.startDate });
+    onCreate({ name: values.name.trim(), goal, months, startDate: values.startDate, members, visibility: values.visibility });
     reset();
   };
 
@@ -86,7 +114,7 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
-      <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-xl gap-0 rounded-3xl p-0 bg-card">
+      <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-xl gap-0 overflow-y-auto rounded-3xl bg-card p-0">
         <DialogHeader className="px-6 pb-4 pt-6 text-left">
           <DialogTitle className="text-xl font-extrabold tracking-tight">Start a new circle</DialogTitle>
           <DialogDescription>Set a savings goal and member count. Circle Pay splits it into an equal monthly share. The assistant reads a monthly amount per member and converts it into the goal.</DialogDescription>
@@ -145,6 +173,52 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
             {field('months', 'Members / Months', { type: 'number', min: 2, max: 24, inputMode: 'numeric' })}
           </div>
           {field('startDate', 'Start Date', { type: 'date' })}
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-semibold">Who can join?</legend>
+            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Circle visibility">
+              {([
+                ['private', 'Private circle', 'Add every member yourself.'],
+                ['public', 'Public circle', 'Let people request open places.'],
+              ] as const).map(([value, title, hint]) => (
+                <label key={value} className={`flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors ${values.visibility === value ? 'border-tertiary/50 bg-tertiary/5' : 'border-border hover:bg-muted/60'}`}>
+                  <input
+                    type="radio"
+                    name="circle-visibility"
+                    value={value}
+                    checked={values.visibility === value}
+                    onChange={() => set('visibility', value)}
+                    className="mt-1 accent-[hsl(var(--tertiary))]"
+                    data-testid={`radio-visibility-${value}`}
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold">{title}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">{hint}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="space-y-1.5">
+            <Label htmlFor="f-members" className="text-sm font-semibold">Member names</Label>
+            <Textarea
+              id="f-members"
+              value={values.members}
+              onChange={(event) => set('members', event.target.value)}
+              placeholder="Add names separated by commas or new lines"
+              aria-invalid={!!errors.members}
+              aria-describedby={errors.members ? 'e-members' : 'help-members'}
+              className={`min-h-20 resize-y rounded-xl ${errors.members ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              data-testid="input-members"
+            />
+            {errors.members
+              ? <p id="e-members" className="text-xs font-medium text-destructive" data-testid="error-members">{errors.members}</p>
+              : <p id="help-members" className="text-xs text-muted-foreground">User is included automatically. Names are demo-only; no invitations are sent.</p>}
+            {values.visibility === 'public' && (
+              <p className="rounded-xl border border-tertiary/20 bg-tertiary/5 px-3 py-2 text-xs text-muted-foreground">
+                Requests need your approval. The rotation starts once every place is filled. Member names won’t appear in public search.
+              </p>
+            )}
+          </div>
           {(() => {
             const g = Number(values.goal); const n = Number(values.months);
             const ok = g > 0 && Number.isFinite(g) && Number.isInteger(n) && n >= 2 && n <= 24 && Math.round(g * 1000) >= n;

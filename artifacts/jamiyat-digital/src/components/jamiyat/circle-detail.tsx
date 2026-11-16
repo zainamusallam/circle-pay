@@ -30,7 +30,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
     }
     if (auto && e.funding?.queuedAt) {
       return isCurrent ? (
-        <Button size="sm" className="h-8 rounded-lg" onClick={() => { api.markCollected(circle.id, e.month); toast({ title: 'Demo transfer completed', description: `${fmtKWD(pot)} released to ${displayMember(e.recipient)} (simulated).` }); }} data-testid={`button-complete-transfer-${e.month}`}>
+        <Button size="sm" className="h-11 rounded-lg md:h-8" onClick={() => { api.markCollected(circle.id, e.month); toast({ title: 'Demo transfer completed', description: `${fmtKWD(pot)} released to ${displayMember(e.recipient)} (simulated).` }); }} data-testid={`button-complete-transfer-${e.month}`}>
           <HandCoins className="mr-1 h-3.5 w-3.5" /> Complete demo transfer
         </Button>
       ) : <span className="text-xs text-muted-foreground">Held, queued</span>;
@@ -41,7 +41,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
     if (e.collected) {
       const isLastCollected = !circle.schedule.some((x) => x.month > e.month && x.collected);
       return isLastCollected ? (
-        <Button size="sm" variant="ghost" className="h-8 text-muted-foreground" onClick={() => api.undoCollected(circle.id, e.month)} data-testid={`button-undo-collect-${e.month}`}>
+        <Button size="sm" variant="ghost" className="h-11 text-muted-foreground md:h-8" onClick={() => api.undoCollected(circle.id, e.month)} data-testid={`button-undo-collect-${e.month}`}>
           <RotateCcw className="mr-1 h-3.5 w-3.5" /> Undo
         </Button>
       ) : <span className="text-xs text-muted-foreground">Settled</span>;
@@ -49,7 +49,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
     if (!e.paid) {
       return (
         <Button
-          size="sm" className="h-8 rounded-lg"
+          size="sm" className="h-11 rounded-lg md:h-8"
           onClick={() => { api.markPaid(circle.id, e.month); toast({ title: `Month ${e.month} marked paid`, description: `${fmtKWD(share)} contribution recorded for ${circle.name}.` }); }}
           data-testid={`button-mark-paid-${e.month}`}
         >
@@ -62,13 +62,13 @@ export function CircleDetail({ circle, api, onBack }: Props) {
         <Button
           size="sm" variant="outline" disabled={!isCurrent}
           title={isCurrent ? undefined : 'Payouts are collected in rotation order'}
-          className="h-8 rounded-lg border-primary/40 text-primary"
+          className="h-11 rounded-lg border-primary/40 text-primary md:h-8"
           onClick={() => { api.markCollected(circle.id, e.month); toast({ title: `Payout collected by ${displayMember(e.recipient)}`, description: `${fmtKWD(pot)} released for month ${e.month}.` }); }}
           data-testid={`button-mark-collected-${e.month}`}
         >
           <HandCoins className="mr-1 h-3.5 w-3.5" /> Collect
         </Button>
-        <Button size="sm" variant="ghost" className="h-8 px-2 text-muted-foreground" aria-label={`Undo payment for month ${e.month}`} onClick={() => api.undoPaid(circle.id, e.month)} data-testid={`button-undo-paid-${e.month}`}>
+        <Button size="sm" variant="ghost" className="h-11 min-w-11 px-2 text-muted-foreground md:h-8 md:min-w-0" aria-label={`Undo payment for month ${e.month}`} onClick={() => api.undoPaid(circle.id, e.month)} data-testid={`button-undo-paid-${e.month}`}>
           <RotateCcw className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -77,7 +77,7 @@ export function CircleDetail({ circle, api, onBack }: Props) {
 
   return (
     <div className="space-y-6">
-      <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground" data-testid="button-back">
+      <button onClick={onBack} className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-muted-foreground hover:text-foreground" data-testid="button-back">
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
 

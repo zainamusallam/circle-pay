@@ -1,1 +1,1 @@
-- [Circle Pay demo decisions](funding-demo.md) — funding stays simulated; goals split equally, use “protected balance,” and ask whether to push project updates.
+- [Circle Pay demo decisions](funding-demo.md) — simulated funding, equal goal splits, “protected balance,” approved public circles, phone usability, and ask before pushing updates.
