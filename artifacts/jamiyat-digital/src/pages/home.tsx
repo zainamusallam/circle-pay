@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Cloud, CreditCard, LayoutGrid, Layers, LogOut, Plus, RotateCcw } from 'lucide-react';
+import { CheckCircle2, Cloud, CreditCard, LayoutGrid, Layers, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCircles } from '@/hooks/use-circles';
@@ -17,8 +17,10 @@ import type { DiscoverableCircle } from '@/lib/discover-circles';
 import { useJoinRequests } from '@/hooks/use-join-requests';
 import type { PublicCircle } from '@/lib/public-circles';
 import { useSupabaseAuth } from '@/hooks/use-supabase-auth';
-import { AuthScreen, SupabaseSetupNotice } from '@/components/jamiyat/auth-screen';
+import { AnonymousSessionError, SupabaseSetupNotice } from '@/components/jamiyat/auth-screen';
 import { useNormalizedStateSync } from '@/hooks/use-normalized-state-sync';
+import { PrivateInviteDialog } from '@/components/jamiyat/private-invite-dialog';
+import type { Circle } from '@/lib/circles';
 
 type View = { kind: 'dashboard' } | { kind: 'circles' } | { kind: 'accounts' } | { kind: 'join' } | { kind: 'circle'; id: string };
 
@@ -57,6 +59,7 @@ export default function Home() {
   const { toast } = useToast();
   const [view, setView] = useState<View>({ kind: 'dashboard' });
   const [open, setOpen] = useState(false);
+  const [createdPrivateCircle, setCreatedPrivateCircle] = useState<Circle | null>(null);
   const [entered, setEntered] = useState(false);
   const [inviteOnEntry] = useState(() => new URLSearchParams(window.location.search).has('invite'));
 
@@ -124,7 +127,7 @@ export default function Home() {
   if (auth.loading || (userId && (api.loading || publicCircles.loading || joinRequests.loading))) {
     return <main className="flex min-h-[100dvh] items-center justify-center bg-background px-4"><p role="status" className="rounded-2xl border bg-card px-5 py-4 text-sm font-semibold text-muted-foreground">Loading your Circle Pay account…</p></main>;
   }
-  if (!auth.user) return <AuthScreen onBack={() => setEntered(false)} />;
+  if (!auth.user) return <AnonymousSessionError message={auth.error ?? 'Circle Pay could not start your private demo session.'} onRetry={auth.retry} onBack={() => setEntered(false)} />;
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -149,7 +152,7 @@ export default function Home() {
 
         <div className="mt-auto space-y-4 pb-28">
           <div className="rounded-2xl bg-muted p-4">
-            <p className="text-xs font-semibold text-muted-foreground">Signed in as</p>
+            <p className="text-xs font-semibold text-muted-foreground">Private demo session</p>
             <div className="mt-2 flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">US</span>
               <div>
@@ -163,9 +166,6 @@ export default function Home() {
           <button onClick={resetDemo} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground" data-testid="button-reset-demo">
             <RotateCcw className="h-3 w-3" /> Reset demo data
           </button>
-          <button onClick={() => { void auth.signOut().catch((error) => toast({ title: 'Could not sign out', description: error instanceof Error ? error.message : 'Try again.' })); }} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground" data-testid="button-sign-out">
-            <LogOut className="h-3 w-3" /> Sign out
-          </button>
         </div>
       </aside>
 
@@ -174,7 +174,6 @@ export default function Home() {
         <Logo onClick={toWelcome} />
         <div className="flex items-center gap-1">
           <button onClick={resetDemo} aria-label="Reset demo data" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" data-testid="button-reset-demo-mobile"><RotateCcw className="h-4 w-4" /></button>
-          <button onClick={() => { void auth.signOut().catch((error) => toast({ title: 'Could not sign out', description: error instanceof Error ? error.message : 'Try again.' })); }} aria-label="Sign out" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" data-testid="button-sign-out-mobile"><LogOut className="h-4 w-4" /></button>
           <Button size="sm" onClick={() => setOpen(true)} className="h-11 rounded-xl" data-testid="button-new-circle-mobile"><Plus className="mr-1 h-4 w-4" /> New</Button>
         </div>
       </header>
@@ -282,10 +281,12 @@ export default function Home() {
           }
           const c = await api.addPrivateCircle({ ...v, members, inviteCode: v.inviteCode });
           setOpen(false);
+          setCreatedPrivateCircle(c);
           toast({ title: `${c.name} created`, description: `Share the invite code with ${c.months - 1} participant${c.months === 2 ? '' : 's'} so they can add their own names.` });
           go({ kind: 'circle', id: c.id });
         }}
       />
+      <PrivateInviteDialog circle={createdPrivateCircle} onClose={() => setCreatedPrivateCircle(null)} />
     </div>
   );
 }
