@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CreditCard, LayoutGrid, Layers, LogOut, Plus, RotateCcw } from 'lucide-react';
+import { CheckCircle2, Cloud, CreditCard, LayoutGrid, Layers, LogOut, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCircles } from '@/hooks/use-circles';
@@ -167,6 +167,13 @@ export default function Home() {
       <main className="px-4 pb-28 pt-6 sm:px-6 lg:ml-64 lg:px-10 lg:pb-12 lg:pt-10">
         <div className="mx-auto max-w-5xl">
           <div className="mb-5 lg:hidden"><DemoPill /></div>
+          {!api.storageError && !publicCircles.error && !joinRequests.error && (
+            <p role="status" className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary" data-testid="status-supabase-sync">
+              {api.synced && publicCircles.synced && joinRequests.synced
+                ? <><CheckCircle2 className="h-3.5 w-3.5" /> Demo data saved to Supabase</>
+                : <><Cloud className="h-3.5 w-3.5" /> Saving demo data to Supabase…</>}
+            </p>
+          )}
           {(api.storageError || publicCircles.error || joinRequests.error) && (
             <div role="alert" className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-testid="text-storage-error">
               Some demo data could not sync to Supabase. Check your connection and try again.

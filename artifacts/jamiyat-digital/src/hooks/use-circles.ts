@@ -12,6 +12,24 @@ function isFundingState(value: unknown): value is FundingState {
     Array.isArray(state.transactions) && typeof state.simulatedDate === 'string';
 }
 
+function readLegacyFundingState(): unknown {
+  try {
+    const current = localStorage.getItem('jamiyat-digital:funding:v1');
+    if (current) {
+      const parsed: unknown = JSON.parse(current);
+      if (isFundingState(parsed)) return upgradeFundingState(parsed);
+    }
+    const legacy = localStorage.getItem('jamiyat-digital:v1');
+    if (legacy) {
+      const circles: unknown = JSON.parse(legacy);
+      if (Array.isArray(circles)) return initialFunding(circles as Circle[]);
+    }
+  } catch {
+    // Malformed legacy data is left untouched; the account receives demo defaults.
+  }
+  return null;
+}
+
 function circleFromRow(value: unknown, ownerId: string, inviteCode: string): Circle | null {
   if (!value || typeof value !== 'object') return null;
   const circle = value as Circle;
@@ -40,7 +58,7 @@ function mapOwnMemberToUser(circle: Circle, ownName: string): Circle {
 
 export function useCircles(userId: string | null) {
   const initial = useMemo(() => initialFunding(), []);
-  const cloud = useCloudState(userId, 'funding', initial, isFundingState);
+  const cloud = useCloudState(userId, 'funding', initial, isFundingState, readLegacyFundingState);
   const { state, setState } = cloud;
   const [privateCircleError, setPrivateCircleError] = useState<string | null>(null);
 
@@ -178,6 +196,7 @@ export function useCircles(userId: string | null) {
     ...state,
     userId,
     loading: cloud.loading,
+    synced: cloud.synced,
     storageError: Boolean(cloud.error || privateCircleError),
     storageMessage: cloud.error || privateCircleError,
     markPaid, undoPaid, markCollected, undoCollected,

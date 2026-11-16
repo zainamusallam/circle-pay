@@ -19,8 +19,17 @@ function isPublicCircles(value: unknown): value is PublicCircle[] {
       typeof circle.startDate === 'string');
 }
 
+function readLegacyPublicCircles(): unknown {
+  try {
+    const raw = localStorage.getItem('circle-pay:public-circles:v1');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function usePublicCircles(userId: string | null) {
-  const cloud = useCloudState(userId, 'public_circles', EMPTY_PUBLIC_CIRCLES, isPublicCircles);
+  const cloud = useCloudState(userId, 'public_circles', EMPTY_PUBLIC_CIRCLES, isPublicCircles, readLegacyPublicCircles);
   const circles = cloud.state;
   const setCircles = cloud.setState;
 
@@ -50,5 +59,5 @@ export function usePublicCircles(userId: string | null) {
 
   const reset = useCallback(() => setCircles([]), []);
 
-  return { circles, create, request, cancelRequest, approveRequest, declineRequest, reset, loading: cloud.loading, error: cloud.error };
+  return { circles, create, request, cancelRequest, approveRequest, declineRequest, reset, loading: cloud.loading, error: cloud.error, synced: cloud.synced };
 }
