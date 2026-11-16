@@ -22,6 +22,7 @@ export type Circle = {
   startDate: string;
   members: string[];
   inviteCode?: string;
+  ownerId?: string;
   schedule: MonthEntry[];
   autoDebit: boolean;
 };

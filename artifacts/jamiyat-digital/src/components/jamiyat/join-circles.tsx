@@ -11,7 +11,7 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, onJoinInvite, 
   onBack: () => void;
   onRequest: (circle: DiscoverableCircle, label: string) => void;
   onCancelRequest: (circle: DiscoverableCircle, label: string) => void;
-  onJoinInvite: (code: string, memberName: string) => Circle | null;
+  onJoinInvite: (code: string, memberName: string) => Circle | null | Promise<Circle | null>;
   requestedIds: string[];
   publicCircles: PublicCircle[];
 }) {
@@ -20,23 +20,31 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, onJoinInvite, 
   const [inviteCode, setInviteCode] = useState(() => new URLSearchParams(window.location.search).get('invite') ?? '');
   const [memberName, setMemberName] = useState('');
   const [inviteError, setInviteError] = useState('');
+  const [joiningInvite, setJoiningInvite] = useState(false);
   const listings = useMemo(() => [...getDiscoverableCircles(), ...publicCircles], [publicCircles]);
   const results = findSimilarCircles(listings, {
     goal: goal.trim() ? Number(goal) : undefined,
     startDate: startDate || undefined,
   });
   const hasSearch = goal.trim().length > 0 || startDate.length > 0;
-  const submitInvite = (event: FormEvent) => {
+  const submitInvite = async (event: FormEvent) => {
     event.preventDefault();
-    const joined = onJoinInvite(inviteCode, memberName);
-    if (!joined) {
-      setInviteError('That code is invalid, already full, or this name is already in the circle.');
-      return;
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.delete('invite');
-    window.history.replaceState({}, '', url);
+    setJoiningInvite(true);
     setInviteError('');
+    try {
+      const joined = await onJoinInvite(inviteCode, memberName);
+      if (!joined) {
+        setInviteError('That code is invalid, already full, or this name is already in the circle.');
+        return;
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete('invite');
+      window.history.replaceState({}, '', url);
+    } catch (error) {
+      setInviteError(error instanceof Error ? error.message : 'Could not join this circle. Check the invite code and try again.');
+    } finally {
+      setJoiningInvite(false);
+    }
   };
 
   return (
@@ -64,8 +72,8 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, onJoinInvite, 
             <span className="text-sm font-semibold">Your name</span>
             <input value={memberName} onChange={(event) => { setMemberName(event.target.value); setInviteError(''); }} placeholder="Enter your name" maxLength={40} className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="input-invite-member-name" />
           </label>
-          <Button type="submit" className="h-11 rounded-xl" disabled={!inviteCode.trim() || !memberName.trim()} data-testid="button-join-private-invite">
-            Join private circle <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
+          <Button type="submit" className="h-11 rounded-xl" disabled={joiningInvite || !inviteCode.trim() || !memberName.trim()} data-testid="button-join-private-invite">
+            {joiningInvite ? 'Joining…' : <>Join private circle <ArrowRight className="ml-1 h-4 w-4" aria-hidden /></>}
           </Button>
         </div>
         {inviteError && <p role="alert" className="mt-2 text-sm font-medium text-destructive" data-testid="text-invite-error">{inviteError}</p>}

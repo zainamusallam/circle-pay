@@ -12,6 +12,12 @@ type Values = { name: string; goal: string; months: string; startDate: string; v
 type Errors = Partial<Record<keyof Values, string>>;
 
 const EXAMPLE = 'Create a 5-month circle for 40 dinars each starting next month';
+const INVITE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const createInviteCode = () => {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  return `CP-${Array.from(bytes, (byte) => INVITE_ALPHABET[byte % INVITE_ALPHABET.length]).join('')}`;
+};
 const blank = (): Values => ({
   name: '',
   goal: '',
@@ -23,12 +29,14 @@ const blank = (): Values => ({
 export function NewCircleDialog({ open, onOpenChange, onCreate }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  onCreate: (v: { name: string; goal: number; months: number; startDate: string; visibility: Visibility; inviteCode?: string }) => void;
+  onCreate: (v: { name: string; goal: number; months: number; startDate: string; visibility: Visibility; inviteCode?: string }) => void | Promise<void>;
 }) {
   const [values, setValues] = useState<Values>(blank);
   const [errors, setErrors] = useState<Errors>({});
   const [prompt, setPrompt] = useState('');
   const [result, setResult] = useState<ParseResult | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const reset = () => { setValues(blank()); setErrors({}); setPrompt(''); setResult(null); };
   const set = (k: keyof Values, v: string) => {
@@ -57,7 +65,7 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
     }
   };
 
-  const submit = (ev: FormEvent) => {
+  const submit = async (ev: FormEvent) => {
     ev.preventDefault();
     const e: Errors = {};
     const goal = Number(values.goal);
@@ -73,11 +81,17 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
     if (!values.startDate || Number.isNaN(Date.parse(values.startDate))) e.startDate = 'Pick a valid start date.';
     setErrors(e);
     if (Object.keys(e).length) return;
-    const inviteCode = values.visibility === 'private'
-      ? `CP-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
-      : undefined;
-    onCreate({ name: values.name.trim(), goal, months, startDate: values.startDate, visibility: values.visibility, inviteCode });
-    reset();
+    const inviteCode = values.visibility === 'private' ? createInviteCode() : undefined;
+    setSaving(true);
+    setSubmitError('');
+    try {
+      await onCreate({ name: values.name.trim(), goal, months, startDate: values.startDate, visibility: values.visibility, inviteCode });
+      reset();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Could not create the circle. Try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const field = (k: keyof Values, label: string, props: Record<string, unknown>, suffix?: string) => (
@@ -221,9 +235,10 @@ export function NewCircleDialog({ open, onOpenChange, onCreate }: {
               </div>
             );
           })()}
+          {submitError && <p role="alert" className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2.5 text-sm text-destructive" data-testid="text-create-circle-error">{submitError}</p>}
           <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
             <Button type="button" variant="ghost" className="rounded-xl" onClick={() => { onOpenChange(false); reset(); }} data-testid="button-cancel-create">Cancel</Button>
-            <Button type="submit" className="h-11 rounded-xl px-6" data-testid="button-create-circle">Create circle</Button>
+            <Button type="submit" disabled={saving} className="h-11 rounded-xl px-6" data-testid="button-create-circle">{saving ? 'Saving…' : 'Create circle'}</Button>
           </div>
         </form>
       </DialogContent>

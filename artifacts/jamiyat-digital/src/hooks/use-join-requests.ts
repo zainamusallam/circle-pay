@@ -1,26 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
+import { useCloudState } from './use-cloud-state';
 
-const STORAGE_KEY = 'circle-pay:join-requests:v1';
+const EMPTY_REQUESTS: string[] = [];
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((id) => typeof id === 'string');
 
-function loadRequests(): string[] {
-  try {
-    const value: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-    return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
-  } catch {
-    return [];
-  }
-}
-
-export function useJoinRequests() {
-  const [requestedIds, setRequestedIds] = useState<string[]>(loadRequests);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(requestedIds));
-    } catch {
-      // Requests remain available for this session when browser storage is blocked.
-    }
-  }, [requestedIds]);
+export function useJoinRequests(userId: string | null) {
+  const cloud = useCloudState(userId, 'join_requests', EMPTY_REQUESTS, isStringArray);
+  const requestedIds = cloud.state;
+  const setRequestedIds = cloud.setState;
 
   const request = useCallback((id: string) => {
     setRequestedIds((ids) => ids.includes(id) ? ids : [...ids, id]);
@@ -32,5 +20,5 @@ export function useJoinRequests() {
 
   const reset = useCallback(() => setRequestedIds([]), []);
 
-  return { requestedIds, request, cancel, reset };
+  return { requestedIds, request, cancel, reset, loading: cloud.loading, error: cloud.error };
 }

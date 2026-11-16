@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CreditCard, LayoutGrid, Layers, Plus, RotateCcw } from 'lucide-react';
+import { CreditCard, LayoutGrid, Layers, LogOut, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCircles } from '@/hooks/use-circles';
@@ -16,6 +16,8 @@ import { JoinCircles } from '@/components/jamiyat/join-circles';
 import type { DiscoverableCircle } from '@/lib/discover-circles';
 import { useJoinRequests } from '@/hooks/use-join-requests';
 import type { PublicCircle } from '@/lib/public-circles';
+import { useSupabaseAuth } from '@/hooks/use-supabase-auth';
+import { AuthScreen, SupabaseSetupNotice } from '@/components/jamiyat/auth-screen';
 
 type View = { kind: 'dashboard' } | { kind: 'circles' } | { kind: 'accounts' } | { kind: 'join' } | { kind: 'circle'; id: string };
 
@@ -32,9 +34,11 @@ function Logo({ onClick }: { onClick: () => void }) {
 }
 
 export default function Home() {
-  const api = useCircles();
-  const joinRequests = useJoinRequests();
-  const publicCircles = usePublicCircles();
+  const auth = useSupabaseAuth();
+  const userId = auth.user?.id ?? null;
+  const api = useCircles(userId);
+  const joinRequests = useJoinRequests(userId);
+  const publicCircles = usePublicCircles(userId);
   const { toast } = useToast();
   const [view, setView] = useState<View>({ kind: 'dashboard' });
   const [open, setOpen] = useState(false);
@@ -101,6 +105,11 @@ export default function Home() {
 
   const toWelcome = () => { setOpen(false); setEntered(false); window.scrollTo({ top: 0 }); };
   if (!entered) return <Welcome onEnter={() => { setEntered(true); setView(inviteOnEntry ? { kind: 'join' } : { kind: 'dashboard' }); window.scrollTo({ top: 0 }); }} />;
+  if (!auth.configured) return <SupabaseSetupNotice onBack={() => setEntered(false)} />;
+  if (auth.loading || (userId && (api.loading || publicCircles.loading || joinRequests.loading))) {
+    return <main className="flex min-h-[100dvh] items-center justify-center bg-background px-4"><p role="status" className="rounded-2xl border bg-card px-5 py-4 text-sm font-semibold text-muted-foreground">Loading your Circle Pay account…</p></main>;
+  }
+  if (!auth.user) return <AuthScreen onBack={() => setEntered(false)} />;
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -139,6 +148,9 @@ export default function Home() {
           <button onClick={resetDemo} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground" data-testid="button-reset-demo">
             <RotateCcw className="h-3 w-3" /> Reset demo data
           </button>
+          <button onClick={() => { void auth.signOut().catch((error) => toast({ title: 'Could not sign out', description: error instanceof Error ? error.message : 'Try again.' })); }} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground" data-testid="button-sign-out">
+            <LogOut className="h-3 w-3" /> Sign out
+          </button>
         </div>
       </aside>
 
@@ -147,6 +159,7 @@ export default function Home() {
         <Logo onClick={toWelcome} />
         <div className="flex items-center gap-1">
           <button onClick={resetDemo} aria-label="Reset demo data" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" data-testid="button-reset-demo-mobile"><RotateCcw className="h-4 w-4" /></button>
+          <button onClick={() => { void auth.signOut(); }} aria-label="Sign out" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" data-testid="button-sign-out-mobile"><LogOut className="h-4 w-4" /></button>
           <Button size="sm" onClick={() => setOpen(true)} className="h-11 rounded-xl" data-testid="button-new-circle-mobile"><Plus className="mr-1 h-4 w-4" /> New</Button>
         </div>
       </header>
@@ -154,9 +167,9 @@ export default function Home() {
       <main className="px-4 pb-28 pt-6 sm:px-6 lg:ml-64 lg:px-10 lg:pb-12 lg:pt-10">
         <div className="mx-auto max-w-5xl">
           <div className="mb-5 lg:hidden"><DemoPill /></div>
-          {api.storageError && (
+          {(api.storageError || publicCircles.error || joinRequests.error) && (
             <div role="alert" className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-testid="text-storage-error">
-              Browser storage is unavailable. Demo changes work for now but cannot persist after reload.
+              Some demo data could not sync to Supabase. Check your connection and try again.
             </div>
           )}
           {view.kind === 'dashboard' && (
@@ -179,10 +192,10 @@ export default function Home() {
               onBack={() => go({ kind: 'dashboard' })}
               onRequest={requestCircle}
               onCancelRequest={cancelCircleRequest}
-              onJoinInvite={(code, memberName) => {
-                const joined = api.joinByInviteCode(code, memberName);
+              onJoinInvite={async (code, memberName) => {
+                const joined = await api.joinByInviteCode(code, memberName);
                 if (joined) {
-                  toast({ title: `You joined ${joined.name}`, description: 'Your name was added to an open participant spot in this demo.' });
+                  toast({ title: `You joined ${joined.name}`, description: 'Your name was added to this circle.' });
                   go({ kind: 'circle', id: joined.id });
                 }
                 return joined;
@@ -225,7 +238,7 @@ export default function Home() {
       <NewCircleDialog
         open={open}
         onOpenChange={setOpen}
-        onCreate={(v) => {
+        onCreate={async (v) => {
           const members = v.visibility === 'public'
             ? ['Ahmed']
             : ['Ahmed', ...Array.from({ length: v.months - 1 }, (_, index) => `Open spot ${index + 1}`)];
@@ -245,7 +258,7 @@ export default function Home() {
             go({ kind: 'circles' });
             return;
           }
-          const c = api.addCircle({ ...v, members, inviteCode: v.inviteCode });
+          const c = await api.addPrivateCircle({ ...v, members, inviteCode: v.inviteCode });
           setOpen(false);
           toast({ title: `${c.name} created`, description: `Share the invite code with ${c.months - 1} participant${c.months === 2 ? '' : 's'} so they can add their own names.` });
           go({ kind: 'circle', id: c.id });

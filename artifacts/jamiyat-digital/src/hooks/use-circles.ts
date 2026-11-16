@@ -1,36 +1,101 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { buildCircle, type Circle } from '@/lib/circles';
 import { collectMonth, ensureWallets, initialFunding, simulateBilling, type FundingState } from '@/lib/funding';
 import { upgradeFundingState } from '@/lib/funding-migration';
+import { supabase } from '@/lib/supabase';
+import { useCloudState } from './use-cloud-state';
 
-const KEY = 'jamiyat-digital:funding:v1';
-const LEGACY_KEY = 'jamiyat-digital:v1';
-
-function load(): FundingState {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as FundingState;
-      if (Array.isArray(parsed.circles) && Array.isArray(parsed.wallets) &&
-          Array.isArray(parsed.transactions) && typeof parsed.simulatedDate === 'string') return upgradeFundingState(parsed);
-    }
-    const legacy = localStorage.getItem(LEGACY_KEY);
-    if (legacy) {
-      const circles = JSON.parse(legacy);
-      if (Array.isArray(circles)) return initialFunding(circles as Circle[]);
-    }
-  } catch { /* Unavailable or invalid browser storage starts a fresh local demo. */ }
-  return initialFunding();
+function isFundingState(value: unknown): value is FundingState {
+  if (!value || typeof value !== 'object') return false;
+  const state = value as Partial<FundingState>;
+  return Array.isArray(state.circles) && Array.isArray(state.wallets) &&
+    Array.isArray(state.transactions) && typeof state.simulatedDate === 'string';
 }
 
-export function useCircles() {
-  const [state, setState] = useState<FundingState>(load);
-  const [storageError, setStorageError] = useState(false);
+function circleFromRow(value: unknown, ownerId: string, inviteCode: string): Circle | null {
+  if (!value || typeof value !== 'object') return null;
+  const circle = value as Circle;
+  if (typeof circle.id !== 'string' || !Array.isArray(circle.members) || !Array.isArray(circle.schedule)) return null;
+  return { ...circle, ownerId, inviteCode };
+}
+
+function mapOwnMemberToUser(circle: Circle, ownName: string): Circle {
+  if (!ownName || ownName === 'Ahmed') return circle;
+  return {
+    ...circle,
+    members: circle.members.map((member) => member === ownName ? 'Ahmed' : member),
+    schedule: circle.schedule.map((entry) => ({
+      ...entry,
+      recipient: entry.recipient === ownName ? 'Ahmed' : entry.recipient,
+      funding: entry.funding ? {
+        ...entry.funding,
+        payments: entry.funding.payments.map((payment) => ({
+          ...payment,
+          member: payment.member === ownName ? 'Ahmed' : payment.member,
+        })),
+      } : undefined,
+    })),
+  };
+}
+
+export function useCircles(userId: string | null) {
+  const initial = useMemo(() => initialFunding(), []);
+  const cloud = useCloudState(userId, 'funding', initial, isFundingState);
+  const { state, setState } = cloud;
+  const [privateCircleError, setPrivateCircleError] = useState<string | null>(null);
 
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); setStorageError(false); }
-    catch { setStorageError(true); }
-  }, [state]);
+    if (!userId || !supabase || cloud.loading) return;
+    const client = supabase;
+    let active = true;
+    const syncPrivateCircles = async () => {
+      const [circlesResult, membersResult] = await Promise.all([
+        client.from('private_circles').select('id, owner_id, invite_code, circle_data'),
+        client.from('private_circle_members').select('circle_id, member_name').eq('user_id', userId),
+      ]);
+      if (!active) return;
+      const error = circlesResult.error ?? membersResult.error;
+      if (error) {
+        setPrivateCircleError(error.message);
+        return;
+      }
+      setPrivateCircleError(null);
+      const ownNames = new Map((membersResult.data ?? []).map((member) => [member.circle_id, member.member_name]));
+      const remote = (circlesResult.data ?? []).flatMap((row) => {
+        const circle = circleFromRow(row.circle_data, row.owner_id, row.invite_code);
+        if (!circle) return [];
+        const ownName = ownNames.get(row.id);
+        return [ownName ? mapOwnMemberToUser(circle, ownName) : circle];
+      });
+      setState((current) => {
+        const remoteById = new Map(remote.map((circle) => [circle.id, circle]));
+        const merged = current.circles.map((circle) => remoteById.get(circle.id) ?? circle);
+        const known = new Set(merged.map((circle) => circle.id));
+        for (const circle of remote) if (!known.has(circle.id)) merged.push(circle);
+        return { ...current, circles: merged, wallets: ensureWallets(merged, current.wallets) };
+      });
+    };
+    void syncPrivateCircles();
+    return () => { active = false; };
+  }, [userId, cloud.loading, setState]);
+
+  useEffect(() => {
+    if (!userId || !supabase || cloud.loading) return;
+    const client = supabase;
+    let active = true;
+    const owned = state.circles.filter((circle) => circle.ownerId === userId && circle.inviteCode);
+    const timer = window.setTimeout(() => {
+      void Promise.all(owned.map(async (circle) => {
+        const { error } = await client
+          .from('private_circles')
+          .update({ circle_data: circle })
+          .eq('id', circle.id)
+          .eq('owner_id', userId);
+        if (active && error) setPrivateCircleError(error.message);
+      }));
+    }, 400);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [state.circles, userId, cloud.loading]);
 
   const patchMonth = useCallback((id: string, month: number, paid: boolean) => {
     setState((s) => ({ ...s, circles: s.circles.map((c) => c.id !== id ? c : {
@@ -59,34 +124,47 @@ export function useCircles() {
     });
     return circle;
   }, []);
-  const joinByInviteCode = useCallback((code: string, memberName: string) => {
-    const normalizedCode = code.trim().toUpperCase();
-    const normalizedName = memberName.trim();
-    const circle = state.circles.find((item) => item.inviteCode?.toUpperCase() === normalizedCode);
-    if (!circle || !normalizedName) return null;
-    if (circle.members.some((member) => member.toLocaleLowerCase() === normalizedName.toLocaleLowerCase())) return null;
-    const openSpot = circle.members.find((member) => member.startsWith('Open spot '));
-    if (!openSpot) return null;
-    const updatedCircle = {
-      ...circle,
-      members: circle.members.map((member) => member === openSpot ? normalizedName : member),
-      schedule: circle.schedule.map((entry) => entry.recipient === openSpot ? { ...entry, recipient: normalizedName } : entry),
-    };
-    setState((current) => ({
-      ...current,
-      circles: current.circles.map((item) => item.id === circle.id ? updatedCircle : item),
-      wallets: ensureWallets(
-        current.circles.map((item) => item.id === circle.id ? updatedCircle : item),
-        current.wallets,
-      ),
-    }));
-    return updatedCircle;
-  }, [state.circles]);
+  const addPrivateCircle = useCallback(async (input: Parameters<typeof buildCircle>[0]) => {
+    if (!userId || !supabase || !input.inviteCode) throw new Error('Sign in and set up Supabase to create a private circle.');
+    const circle = buildCircle(input);
+    const { data, error } = await supabase.rpc('create_private_circle', {
+      p_circle_id: circle.id,
+      p_invite_code: circle.inviteCode,
+      p_circle_data: circle,
+    });
+    if (error) throw error;
+    const saved = circleFromRow(data, userId, circle.inviteCode!) ?? { ...circle, ownerId: userId };
+    setState((current) => {
+      const circles = [...current.circles.filter((item) => item.id !== saved.id), saved];
+      return { ...current, circles, wallets: ensureWallets(circles, current.wallets) };
+    });
+    return saved;
+  }, [userId, setState]);
+  const joinByInviteCode = useCallback(async (code: string, memberName: string) => {
+    if (!userId || !supabase) return null;
+    const { data, error } = await supabase.rpc('join_private_circle', {
+      p_invite_code: code.trim().toUpperCase(),
+      p_member_name: memberName.trim(),
+    });
+    if (error) throw error;
+    const remote = data as Circle;
+    const circle = circleFromRow(remote, remote.ownerId ?? '', remote.inviteCode ?? '') ?? remote;
+    const currentView = mapOwnMemberToUser(circle, memberName.trim());
+    setState((current) => {
+      const circles = [...current.circles.filter((item) => item.id !== currentView.id), currentView];
+      return { ...current, circles, wallets: ensureWallets(circles, current.wallets) };
+    });
+    return currentView;
+  }, [userId, setState]);
   const removeCircle = useCallback((id: string) => {
     // Do not allow deletion to silently discard held simulated funds.
+    const circle = state.circles.find((item) => item.id === id);
+    if (circle?.ownerId === userId && supabase) {
+      void supabase.from('private_circles').delete().eq('id', id).eq('owner_id', userId);
+    }
     setState((s) => ({ ...s, circles: s.circles.filter((c) =>
       c.id !== id || c.schedule.some((e) => !e.collected && !!e.funding?.payments.length)) }));
-  }, []);
+  }, [state.circles, userId, setState]);
   const toggleAutoDebit = useCallback((id: string, enabled: boolean) => {
     setState((s) => ({ ...s, circles: s.circles.map((c) => c.id !== id ? c : { ...c, autoDebit: enabled }) }));
   }, []);
@@ -97,8 +175,13 @@ export function useCircles() {
   const reset = useCallback(() => setState(initialFunding()), []);
 
   return {
-    ...state, storageError, markPaid, undoPaid, markCollected, undoCollected,
-    addCircle, joinByInviteCode, removeCircle, toggleAutoDebit, simulateNextMonth, reset,
+    ...state,
+    userId,
+    loading: cloud.loading,
+    storageError: Boolean(cloud.error || privateCircleError),
+    storageMessage: cloud.error || privateCircleError,
+    markPaid, undoPaid, markCollected, undoCollected,
+    addCircle, addPrivateCircle, joinByInviteCode, removeCircle, toggleAutoDebit, simulateNextMonth, reset,
   };
 }
 export type CirclesApi = ReturnType<typeof useCircles>;

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
+import { useCloudState } from './use-cloud-state';
 import {
   addPublicCircleRequest,
   approvePublicCircleRequest,
@@ -8,32 +9,20 @@ import {
   type PublicCircle,
 } from '@/lib/public-circles';
 
-const STORAGE_KEY = 'circle-pay:public-circles:v1';
+const EMPTY_PUBLIC_CIRCLES: PublicCircle[] = [];
 
-function loadPublicCircles(): PublicCircle[] {
-  try {
-    const value: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-    if (!Array.isArray(value)) return [];
-    return value.filter((circle): circle is PublicCircle =>
+function isPublicCircles(value: unknown): value is PublicCircle[] {
+  return Array.isArray(value) && value.every((circle) =>
       !!circle && typeof circle.id === 'string' && typeof circle.name === 'string' &&
       typeof circle.goal === 'number' && typeof circle.capacity === 'number' &&
       Array.isArray(circle.members) && Array.isArray(circle.requests) &&
       typeof circle.startDate === 'string');
-  } catch {
-    return [];
-  }
 }
 
-export function usePublicCircles() {
-  const [circles, setCircles] = useState<PublicCircle[]>(loadPublicCircles);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(circles));
-    } catch {
-      // Public circles remain available for this session if browser storage is blocked.
-    }
-  }, [circles]);
+export function usePublicCircles(userId: string | null) {
+  const cloud = useCloudState(userId, 'public_circles', EMPTY_PUBLIC_CIRCLES, isPublicCircles);
+  const circles = cloud.state;
+  const setCircles = cloud.setState;
 
   const create = useCallback((input: CreatePublicCircleInput) => {
     const circle = createPublicCircle(input);
@@ -61,5 +50,5 @@ export function usePublicCircles() {
 
   const reset = useCallback(() => setCircles([]), []);
 
-  return { circles, create, request, cancelRequest, approveRequest, declineRequest, reset };
+  return { circles, create, request, cancelRequest, approveRequest, declineRequest, reset, loading: cloud.loading, error: cloud.error };
 }
