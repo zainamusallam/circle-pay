@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildCircle, type Circle } from '@/lib/circles';
 import { collectMonth, ensureWallets, initialFunding, simulateBilling, type FundingState } from '@/lib/funding';
 import { upgradeFundingState } from '@/lib/funding-migration';
+import { normalizePrivateInviteCode } from '@/lib/private-invites';
 import { supabase } from '@/lib/supabase';
 import { useCloudState } from './use-cloud-state';
 
@@ -60,6 +61,8 @@ export function useCircles(userId: string | null) {
   const initial = useMemo(() => initialFunding(), []);
   const cloud = useCloudState(userId, 'funding', initial, isFundingState, readLegacyFundingState);
   const { state, setState } = cloud;
+  const latestCircles = useRef(state.circles);
+  latestCircles.current = state.circles;
   const [privateCircleError, setPrivateCircleError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -79,12 +82,32 @@ export function useCircles(userId: string | null) {
       }
       setPrivateCircleError(null);
       const ownNames = new Map((membersResult.data ?? []).map((member) => [member.circle_id, member.member_name]));
-      const remote = (circlesResult.data ?? []).flatMap((row) => {
+       const remote = (circlesResult.data ?? []).flatMap((row) => {
         const circle = circleFromRow(row.circle_data, row.owner_id, row.invite_code);
         if (!circle) return [];
         const ownName = ownNames.get(row.id);
         return [ownName ? mapOwnMemberToUser(circle, ownName) : circle];
       });
+      const registeredIds = new Set(remote.map((circle) => circle.id));
+      const legacyPrivateCircles = latestCircles.current.filter((circle) =>
+        circle.inviteCode && !circle.ownerId && !registeredIds.has(circle.id),
+      );
+      const newlyRegistered: Circle[] = [];
+      for (const circle of legacyPrivateCircles) {
+        const inviteCode = normalizePrivateInviteCode(circle.inviteCode ?? '');
+        const { data, error: registrationError } = await client.rpc('create_private_circle', {
+          p_circle_id: circle.id,
+          p_invite_code: inviteCode,
+          p_circle_data: { ...circle, inviteCode },
+        });
+        if (registrationError) {
+          setPrivateCircleError(`Could not enable invite ${circle.inviteCode}: ${registrationError.message}`);
+          continue;
+        }
+        const saved = circleFromRow(data, userId, inviteCode);
+        if (saved) newlyRegistered.push(saved);
+      }
+      remote.push(...newlyRegistered);
       setState((current) => {
         const remoteById = new Map(remote.map((circle) => [circle.id, circle]));
         const merged = current.circles.map((circle) => remoteById.get(circle.id) ?? circle);
@@ -161,7 +184,7 @@ export function useCircles(userId: string | null) {
   const joinByInviteCode = useCallback(async (code: string, memberName: string) => {
     if (!userId || !supabase) return null;
     const { data, error } = await supabase.rpc('join_private_circle', {
-      p_invite_code: code.trim().toUpperCase(),
+      p_invite_code: normalizePrivateInviteCode(code),
       p_member_name: memberName.trim(),
     });
     if (error) throw error;

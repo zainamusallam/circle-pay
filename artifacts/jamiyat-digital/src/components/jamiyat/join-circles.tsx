@@ -6,6 +6,7 @@ import { fmtKWD } from '@/lib/circles';
 import { findSimilarCircles, getDiscoverableCircles, type DiscoverableCircle } from '@/lib/discover-circles';
 import type { PublicCircle } from '@/lib/public-circles';
 import type { Circle } from '@/lib/circles';
+import { normalizePrivateInviteCode } from '@/lib/private-invites';
 
 export function JoinCircles({ onBack, onRequest, onCancelRequest, onJoinInvite, requestedIds, publicCircles }: {
   onBack: () => void;
@@ -32,7 +33,7 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, onJoinInvite, 
     setJoiningInvite(true);
     setInviteError('');
     try {
-      const joined = await onJoinInvite(inviteCode, memberName);
+      const joined = await onJoinInvite(normalizePrivateInviteCode(inviteCode), memberName);
       if (!joined) {
         setInviteError('That code is invalid, already full, or this name is already in the circle.');
         return;
@@ -61,12 +62,12 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, onJoinInvite, 
       <form onSubmit={submitInvite} className="rounded-3xl border border-primary/15 bg-accent/40 p-5 sm:p-6" aria-label="Join by private invite">
         <div className="mb-4">
           <h2 className="font-bold">Have a private invite?</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Enter the code from your circle owner. You add your own name—no member list for the creator to fill in.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Enter the code from your circle owner, or paste the full invite link. You add your own name—no member list for the creator to fill in.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label className="block space-y-1.5">
             <span className="text-sm font-semibold">Invite code</span>
-            <input value={inviteCode} onChange={(event) => { setInviteCode(event.target.value.toUpperCase()); setInviteError(''); }} placeholder="CP-ABC123" autoCapitalize="characters" className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="input-invite-code" />
+            <input value={inviteCode} onChange={(event) => { setInviteCode(event.target.value.toUpperCase()); setInviteError(''); }} placeholder="CP-ABC123 or paste link" autoCapitalize="characters" className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="input-invite-code" />
           </label>
           <label className="block space-y-1.5">
             <span className="text-sm font-semibold">Your name</span>

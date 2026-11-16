@@ -191,7 +191,7 @@ export default function Home() {
           )}
           {(api.storageError || publicCircles.error || joinRequests.error || normalizedState.error) && (
             <div role="alert" className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-testid="text-storage-error">
-              Some demo data could not sync to Supabase. {normalizedState.error ? `Details: ${normalizedState.error}` : 'Check your connection and try again.'}
+              Some demo data could not sync to Supabase. {api.storageMessage || normalizedState.error ? `Details: ${api.storageMessage ?? normalizedState.error}` : 'Check your connection and try again.'}
             </div>
           )}
           {view.kind === 'dashboard' && (
