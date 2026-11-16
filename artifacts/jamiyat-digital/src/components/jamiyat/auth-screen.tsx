@@ -62,7 +62,11 @@ export function AuthScreen({ onBack }: { onBack: () => void }) {
             <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight">{mode === 'signup' ? 'Create your account' : 'Welcome back'}</h1>
           </div>
         </div>
-        <p className="mt-3 text-sm text-muted-foreground">Sign in to keep your circles and demo activity saved to your account.</p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          {mode === 'signup'
+            ? 'Create an account to save your circles and share invite codes across devices.'
+            : 'Sign in to keep your circles and demo activity saved to your account.'}
+        </p>
 
         <div className="mt-5 grid grid-cols-2 rounded-xl bg-muted p-1" role="tablist" aria-label="Account access">
           {(['signin', 'signup'] as const).map((item) => (
@@ -102,6 +106,17 @@ export function AuthScreen({ onBack }: { onBack: () => void }) {
             {busy ? 'Please wait…' : mode === 'signup' ? 'Create account' : 'Sign in'}
           </Button>
         </form>
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          {mode === 'signin' ? 'New to Circle Pay?' : 'Already have an account?'}{' '}
+          <button
+            type="button"
+            onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setMessage(''); }}
+            className="min-h-11 rounded-md px-1 font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-testid="button-auth-mode-switch"
+          >
+            {mode === 'signin' ? 'Create an account' : 'Sign in'}
+          </button>
+        </p>
         <p className="mt-5 text-center text-xs text-muted-foreground">Demo wallets and contributions are simulated. No bank connection or real payments.</p>
       </section>
     </main>
