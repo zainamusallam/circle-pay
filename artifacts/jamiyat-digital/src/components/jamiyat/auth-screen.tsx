@@ -108,15 +108,20 @@ export function AuthScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-export function SupabaseSetupNotice({ onBack }: { onBack: () => void }) {
+export function SupabaseSetupNotice({ onBack, missing }: { onBack: () => void; missing: string[] }) {
   return (
     <main className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-10">
       <section className="w-full max-w-lg rounded-3xl border bg-card p-6 shadow-xl sm:p-8">
         <button type="button" onClick={onBack} className="mb-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
-        <h1 className="text-2xl font-extrabold">Supabase setup needs one value</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Supabase is set up for Circle Pay, but the app also needs its publishable key in Replit Secrets as <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>. Never use a service-role or secret key in the browser.</p>
+        <h1 className="text-2xl font-extrabold">Supabase settings are missing</h1>
+        <p className="mt-2 text-sm text-muted-foreground">The current app build cannot see these settings:</p>
+        <ul className="mt-3 list-inside list-disc rounded-xl bg-muted/60 px-4 py-3 text-sm font-semibold" data-testid="text-supabase-config-status">
+          {missing.map((key) => <li key={key}><code>{key}</code></li>)}
+        </ul>
+        <p className="mt-3 text-sm text-muted-foreground">The publishable key belongs in Replit Secrets. Do not use a service-role key. After updating settings, restart the web workflow and refresh this page.</p>
+        <Button type="button" variant="outline" onClick={() => window.location.reload()} className="mt-5 h-11 rounded-xl" data-testid="button-reload-supabase">Refresh app</Button>
       </section>
     </main>
   );

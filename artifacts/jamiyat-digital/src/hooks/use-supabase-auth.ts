@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { isSupabaseConfigured, missingSupabaseConfig, supabase } from '@/lib/supabase';
 
 export function useSupabaseAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -40,7 +40,7 @@ export function useSupabaseAuth() {
     setUser(null);
   };
 
-  return { user, loading, configured: isSupabaseConfigured, signOut };
+  return { user, loading, configured: isSupabaseConfigured, missingConfig: missingSupabaseConfig, signOut };
 }
 
 export const authDisplayName = (user: User | null) => {

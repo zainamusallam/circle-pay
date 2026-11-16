@@ -105,7 +105,7 @@ export default function Home() {
 
   const toWelcome = () => { setOpen(false); setEntered(false); window.scrollTo({ top: 0 }); };
   if (!entered) return <Welcome onEnter={() => { setEntered(true); setView(inviteOnEntry ? { kind: 'join' } : { kind: 'dashboard' }); window.scrollTo({ top: 0 }); }} />;
-  if (!auth.configured) return <SupabaseSetupNotice onBack={() => setEntered(false)} />;
+  if (!auth.configured) return <SupabaseSetupNotice onBack={() => setEntered(false)} missing={auth.missingConfig} />;
   if (auth.loading || (userId && (api.loading || publicCircles.loading || joinRequests.loading))) {
     return <main className="flex min-h-[100dvh] items-center justify-center bg-background px-4"><p role="status" className="rounded-2xl border bg-card px-5 py-4 text-sm font-semibold text-muted-foreground">Loading your Circle Pay account…</p></main>;
   }
