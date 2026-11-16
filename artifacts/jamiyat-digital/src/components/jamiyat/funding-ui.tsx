@@ -1,4 +1,4 @@
-import { CalendarClock, Landmark, Lock, PauseCircle, PlayCircle, ShieldAlert, ShieldCheck, Wallet as WalletIcon } from 'lucide-react';
+import { CalendarClock, Landmark, Lock, PauseCircle, PlayCircle, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -151,31 +151,6 @@ export function LinkedAccounts({ api }: { api: CirclesApi }) {
           </div>
         </section>
       ))}
-      </div>
-    </div>
-  );
-}
-
-export function DemoControlBar({ api }: { api: CirclesApi }) {
-  const r = api.lastRun;
-  const summary = r
-    ? `${r.debited} debited, ${r.secured} vault${r.secured === 1 ? '' : 's'} secured, ${r.failed} failed, ${r.skipped} skipped`
-    : 'No run yet. Each run debits every enabled circle once.';
-  return (
-    <div className="fixed inset-x-2 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 lg:inset-x-auto lg:bottom-4 lg:left-[calc(16rem+2.5rem)] lg:right-10" role="region" aria-label="Demo control bar">
-      <div className="mx-auto flex max-w-5xl flex-col gap-2 rounded-2xl border border-primary/20 bg-card/95 p-2.5 shadow-[0_12px_32px_-12px_hsl(160_50%_15%/0.35)] backdrop-blur sm:flex-row sm:items-center sm:gap-4 sm:p-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
-            <span className="font-bold uppercase tracking-wider text-primary">Demo billing date</span>
-            <span className="num font-semibold text-foreground" data-testid="text-simulated-date">{api.simulatedDate}</span>
-            {r && <span className="num">· last run {fmtStamp(r.timestamp)}</span>}
-          </div>
-          <p aria-live="polite" className="truncate text-xs font-medium" data-testid="text-last-run">{summary}</p>
-          <p className="text-[10px] leading-snug text-muted-foreground">Simulated clock: runs only when you click. Nothing executes while the app is closed. Protected balances are simulated; no real money or bank.</p>
-        </div>
-        <Button onClick={() => api.simulateNextMonth()} className="h-10 shrink-0 rounded-xl" data-testid="button-simulate-month">
-          <WalletIcon className="mr-1.5 h-4 w-4" aria-hidden /> Simulate Next Month's Auto-Debit
-        </Button>
       </div>
     </div>
   );

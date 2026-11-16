@@ -10,9 +10,11 @@ import { CircleDetail } from '@/components/jamiyat/circle-detail';
 import { NewCircleDialog } from '@/components/jamiyat/new-circle-dialog';
 import { CirclePayMark, Welcome } from '@/components/jamiyat/welcome';
 import { DemoPill } from '@/components/jamiyat/bits';
-import { DemoControlBar, LinkedAccounts } from '@/components/jamiyat/funding-ui';
+import { LinkedAccounts } from '@/components/jamiyat/funding-ui';
+import { JoinCircles } from '@/components/jamiyat/join-circles';
+import type { DiscoverableCircle } from '@/lib/discover-circles';
 
-type View = { kind: 'dashboard' } | { kind: 'circles' } | { kind: 'accounts' } | { kind: 'circle'; id: string };
+type View = { kind: 'dashboard' } | { kind: 'circles' } | { kind: 'accounts' } | { kind: 'join' } | { kind: 'circle'; id: string };
 
 function Logo({ onClick }: { onClick: () => void }) {
   return (
@@ -48,6 +50,18 @@ export default function Home() {
   };
 
   const resetDemo = () => { api.reset(); go({ kind: 'dashboard' }); toast({ title: 'Demo reset', description: 'Sample circles, mock wallets and history restored.' }); };
+
+  const joinCircle = (listing: DiscoverableCircle) => {
+    const circle = api.addCircle({
+      name: listing.name,
+      goal: listing.goal,
+      months: listing.capacity,
+      startDate: listing.startDate,
+      members: [...listing.members, 'Ahmed'],
+    });
+    toast({ title: `Joined ${circle.name}`, description: 'The demo circle is now saved in My Circles.' });
+    go({ kind: 'circle', id: circle.id });
+  };
 
   const toWelcome = () => { setOpen(false); setEntered(false); window.scrollTo({ top: 0 }); };
   if (!entered) return <Welcome onEnter={() => { setEntered(true); setView({ kind: 'dashboard' }); window.scrollTo({ top: 0 }); }} />;
@@ -101,7 +115,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="px-4 pb-64 pt-6 sm:px-6 sm:pb-52 lg:ml-64 lg:px-10 lg:pb-36 lg:pt-10">
+      <main className="px-4 pb-28 pt-6 sm:px-6 lg:ml-64 lg:px-10 lg:pb-12 lg:pt-10">
         <div className="mx-auto max-w-5xl">
           <div className="mb-5 lg:hidden"><DemoPill /></div>
           {api.storageError && (
@@ -110,10 +124,13 @@ export default function Home() {
             </div>
           )}
           {view.kind === 'dashboard' && (
-            <Dashboard circles={api.circles} onOpen={(id) => go({ kind: 'circle', id })} onNew={() => setOpen(true)} onSeeAll={() => go({ kind: 'circles' })} onToggleAuto={toggleAuto} />
+            <Dashboard circles={api.circles} onOpen={(id) => go({ kind: 'circle', id })} onNew={() => setOpen(true)} onJoin={() => go({ kind: 'join' })} onSeeAll={() => go({ kind: 'circles' })} onToggleAuto={toggleAuto} />
           )}
           {view.kind === 'circles' && (
-            <AllCircles circles={api.circles} onOpen={(id) => go({ kind: 'circle', id })} onNew={() => setOpen(true)} onToggleAuto={toggleAuto} />
+            <AllCircles circles={api.circles} onOpen={(id) => go({ kind: 'circle', id })} onNew={() => setOpen(true)} onJoin={() => go({ kind: 'join' })} onToggleAuto={toggleAuto} />
+          )}
+          {view.kind === 'join' && (
+            <JoinCircles onBack={() => go({ kind: 'dashboard' })} onJoin={joinCircle} joinedNames={api.circles.map((circle) => circle.name)} />
           )}
           {view.kind === 'accounts' && (
             <LinkedAccounts api={api} />
@@ -142,8 +159,6 @@ export default function Home() {
           <Plus className="h-5 w-5" /> New circle
         </button>
       </nav>
-
-      <DemoControlBar api={api} />
 
       <NewCircleDialog
         open={open}

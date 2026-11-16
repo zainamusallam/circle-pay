@@ -1,8 +1,8 @@
-import { ArrowUpRight, CalendarClock, CircleDollarSign, Layers, Plus } from 'lucide-react';
+import { ArrowUpRight, CalendarClock, CircleDollarSign, Layers, Plus, Search, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { circleGoal, circleStats, displayMember, fmtDate, fmtKWD, type Circle } from '@/lib/circles';
 import { Initials, ProgressBar } from './bits';
-import { AutoDebitToggle, VaultMeter } from './funding-ui';
+import { AutoDebitToggle } from './funding-ui';
 
 type Toggle = (id: string, enabled: boolean) => void;
 
@@ -30,16 +30,19 @@ export function CircleCard({ circle, onOpen, index, onToggleAuto }: { circle: Ci
 
       <div className="mt-5 flex items-center justify-between text-xs font-medium text-muted-foreground">
         <span>{s.complete ? 'Rotation complete' : `Month ${s.current?.month} of ${circle.months}`}</span>
-        <span className="num">{s.collectedCount}/{circle.months} paid out</span>
+        <span className="num">{s.complete ? 'All settled' : `${Math.round(s.progress * 100)}% complete`}</span>
       </div>
       <ProgressBar value={s.progress} className="mt-2" />
 
-      <div className="mt-5 flex items-end justify-between gap-3">
-        <div className="flex -space-x-2">
-          {circle.members.slice(0, 6).map((m, i) => (
-            <span key={i} className="rounded-full ring-2 ring-card"><Initials name={m} size="sm" highlight={m === 'Ahmed'} /></span>
-          ))}
-          {circle.members.length > 6 && <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-semibold ring-2 ring-card">+{circle.members.length - 6}</span>}
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center">
+          <div className="flex -space-x-2">
+            {circle.members.slice(0, 6).map((m, i) => (
+              <span key={i} className="rounded-full ring-2 ring-card"><Initials name={m} size="sm" highlight={m === 'Ahmed'} /></span>
+            ))}
+            {circle.members.length > 6 && <span className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-[10px] font-semibold ring-2 ring-card">+{circle.members.length - 6}</span>}
+          </div>
+          <span className="ml-2 flex items-center gap-1 text-xs text-muted-foreground"><UsersRound className="h-3.5 w-3.5" aria-hidden />{circle.members.length}</span>
         </div>
         <div className="text-right">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Next due</p>
@@ -48,14 +51,13 @@ export function CircleCard({ circle, onOpen, index, onToggleAuto }: { circle: Ci
           </p>
         </div>
       </div>
-      <div className="mt-4"><VaultMeter circle={circle} compact /></div>
     </button>
     <div className="border-t bg-muted/30 px-5 py-3"><AutoDebitToggle circle={circle} onToggle={onToggleAuto} /></div>
     </div>
   );
 }
 
-export function Dashboard({ circles, onOpen, onNew, onSeeAll, onToggleAuto }: { circles: Circle[]; onOpen: (id: string) => void; onNew: () => void; onSeeAll: () => void; onToggleAuto: Toggle }) {
+export function Dashboard({ circles, onOpen, onNew, onSeeAll, onJoin, onToggleAuto }: { circles: Circle[]; onOpen: (id: string) => void; onNew: () => void; onSeeAll: () => void; onJoin: () => void; onToggleAuto: Toggle }) {
   const active = circles.filter((c) => !circleStats(c).complete);
   const totalContributed = circles.reduce((sum, c) => sum + circleStats(c).contributed, 0);
   const next = circles
@@ -83,26 +85,33 @@ export function Dashboard({ circles, onOpen, onNew, onSeeAll, onToggleAuto }: { 
         <div>
           <p className="text-sm font-medium text-primary">{part}</p>
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl" data-testid="text-greeting">Welcome back, User</h1>
-          <p className="mt-2 max-w-md text-muted-foreground">Here is where every circle stands today. Who has paid, who collects next.</p>
+          <p className="mt-2 max-w-md text-muted-foreground">Your circles, contributions, and upcoming dates at a glance.</p>
         </div>
-        <Button onClick={onNew} size="lg" className="rounded-xl" data-testid="button-new-circle-hero">
-          <Plus className="mr-1.5 h-4 w-4" /> New circle
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={onJoin} variant="outline" size="lg" className="rounded-xl border-tertiary/30 text-tertiary hover:bg-tertiary/10 hover:text-tertiary" data-testid="button-join-circle-hero">
+            <Search className="mr-1.5 h-4 w-4" /> Join a circle
+          </Button>
+          <Button onClick={onNew} size="lg" className="rounded-xl" data-testid="button-new-circle-hero">
+            <Plus className="mr-1.5 h-4 w-4" /> Create circle
+          </Button>
+        </div>
       </header>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_1.3fr_1.3fr]">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {metrics.map((m, i) => (
           <div
             key={m.id}
             style={{ animationDelay: `${80 + i * 60}ms` }}
-            className={`rise rounded-2xl border p-5 ${i === 2 ? 'border-transparent bg-primary text-primary-foreground' : 'bg-card'}`}
+            className="rise rounded-2xl border bg-card p-4 sm:p-5"
           >
             <div className="flex items-center justify-between">
-              <p className={`text-sm font-medium ${i === 2 ? 'text-primary-foreground/75' : 'text-muted-foreground'}`}>{m.label}</p>
-              <m.Icon className={`h-4 w-4 ${i === 2 ? 'text-primary-foreground/70' : 'text-primary'}`} />
+              <p className="text-sm font-medium text-muted-foreground">{m.label}</p>
+              <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${i === 2 ? 'bg-tertiary/10 text-tertiary' : 'bg-accent text-primary'}`}>
+                <m.Icon className="h-4 w-4" />
+              </span>
             </div>
-            <p className="num mt-3 text-2xl font-semibold sm:text-[28px]" data-testid={`text-metric-${m.id}`}>{m.value}</p>
-            <p className={`mt-1 text-xs ${i === 2 ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{m.hint}</p>
+            <p className="num mt-3 text-xl font-bold sm:text-2xl" data-testid={`text-metric-${m.id}`}>{m.value}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{m.hint}</p>
           </div>
         ))}
       </section>
@@ -137,7 +146,7 @@ export function EmptyCircles({ onNew }: { onNew: () => void }) {
   );
 }
 
-export function AllCircles({ circles, onOpen, onNew, onToggleAuto }: { circles: Circle[]; onOpen: (id: string) => void; onNew: () => void; onToggleAuto: Toggle }) {
+export function AllCircles({ circles, onOpen, onNew, onJoin, onToggleAuto }: { circles: Circle[]; onOpen: (id: string) => void; onNew: () => void; onJoin: () => void; onToggleAuto: Toggle }) {
   return (
     <div className="space-y-6">
       <header className="rise flex items-end justify-between gap-4">
@@ -145,7 +154,10 @@ export function AllCircles({ circles, onOpen, onNew, onToggleAuto }: { circles: 
           <h1 className="text-3xl font-extrabold tracking-tight">My Circles</h1>
           <p className="mt-1 text-muted-foreground">{circles.length} circle{circles.length === 1 ? '' : 's'}, active and completed.</p>
         </div>
-        <Button onClick={onNew} className="rounded-xl" data-testid="button-new-circle-list"><Plus className="mr-1.5 h-4 w-4" /> New</Button>
+        <div className="flex gap-2">
+          <Button onClick={onJoin} variant="outline" className="rounded-xl border-tertiary/30 text-tertiary hover:bg-tertiary/10 hover:text-tertiary" data-testid="button-join-circle-list"><Search className="mr-1.5 h-4 w-4" /> Join</Button>
+          <Button onClick={onNew} className="rounded-xl" data-testid="button-new-circle-list"><Plus className="mr-1.5 h-4 w-4" /> Create</Button>
+        </div>
       </header>
       {circles.length === 0 ? <EmptyCircles onNew={onNew} /> : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
