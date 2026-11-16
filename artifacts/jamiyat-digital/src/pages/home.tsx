@@ -13,6 +13,7 @@ import { DemoPill } from '@/components/jamiyat/bits';
 import { LinkedAccounts } from '@/components/jamiyat/funding-ui';
 import { JoinCircles } from '@/components/jamiyat/join-circles';
 import type { DiscoverableCircle } from '@/lib/discover-circles';
+import { useJoinRequests } from '@/hooks/use-join-requests';
 
 type View = { kind: 'dashboard' } | { kind: 'circles' } | { kind: 'accounts' } | { kind: 'join' } | { kind: 'circle'; id: string };
 
@@ -30,6 +31,7 @@ function Logo({ onClick }: { onClick: () => void }) {
 
 export default function Home() {
   const api = useCircles();
+  const joinRequests = useJoinRequests();
   const { toast } = useToast();
   const [view, setView] = useState<View>({ kind: 'dashboard' });
   const [open, setOpen] = useState(false);
@@ -49,18 +51,15 @@ export default function Home() {
     toast({ title: enabled ? 'Auto-debit resumed' : 'Auto-debit paused', description: enabled ? 'This circle joins the next simulated billing run.' : 'The simulator will skip this circle.' });
   };
 
-  const resetDemo = () => { api.reset(); go({ kind: 'dashboard' }); toast({ title: 'Demo reset', description: 'Sample circles, mock wallets and history restored.' }); };
+  const resetDemo = () => { api.reset(); joinRequests.reset(); go({ kind: 'dashboard' }); toast({ title: 'Demo reset', description: 'Sample circles, mock wallets, join requests and history restored.' }); };
 
-  const joinCircle = (listing: DiscoverableCircle) => {
-    const circle = api.addCircle({
-      name: listing.name,
-      goal: listing.goal,
-      months: listing.capacity,
-      startDate: listing.startDate,
-      members: [...listing.members, 'Ahmed'],
-    });
-    toast({ title: `Joined ${circle.name}`, description: 'The demo circle is now saved in My Circles.' });
-    go({ kind: 'circle', id: circle.id });
+  const requestCircle = (listing: DiscoverableCircle, label: string) => {
+    joinRequests.request(listing.id);
+    toast({ title: 'Request sent', description: `Your request for ${label} is pending in this demo.` });
+  };
+  const cancelCircleRequest = (listing: DiscoverableCircle, label: string) => {
+    joinRequests.cancel(listing.id);
+    toast({ title: 'Request cancelled', description: `Your request for ${label} was withdrawn.` });
   };
 
   const toWelcome = () => { setOpen(false); setEntered(false); window.scrollTo({ top: 0 }); };
@@ -130,7 +129,12 @@ export default function Home() {
             <AllCircles circles={api.circles} onOpen={(id) => go({ kind: 'circle', id })} onNew={() => setOpen(true)} onJoin={() => go({ kind: 'join' })} onToggleAuto={toggleAuto} />
           )}
           {view.kind === 'join' && (
-            <JoinCircles onBack={() => go({ kind: 'dashboard' })} onJoin={joinCircle} joinedNames={api.circles.map((circle) => circle.name)} />
+            <JoinCircles
+              onBack={() => go({ kind: 'dashboard' })}
+              onRequest={requestCircle}
+              onCancelRequest={cancelCircleRequest}
+              requestedIds={joinRequests.requestedIds}
+            />
           )}
           {view.kind === 'accounts' && (
             <LinkedAccounts api={api} />

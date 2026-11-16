@@ -2,12 +2,10 @@ import { addMonths, differenceInCalendarDays, format, startOfMonth } from 'date-
 
 export type DiscoverableCircle = {
   id: string;
-  name: string;
   goal: number;
   capacity: number;
   members: string[];
   startDate: string;
-  description: string;
 };
 
 export type CircleSearch = {
@@ -29,39 +27,31 @@ export function getDiscoverableCircles(today = new Date()): DiscoverableCircle[]
   return [
     {
       id: 'community-savers',
-      name: 'Community Savers Circle',
       goal: 3000,
       capacity: 6,
       members: ['Fatima', 'Omar', 'Sara', 'Khalid', 'Noor'],
       startDate: start(1),
-      description: 'A steady monthly rotation for a shared savings goal.',
     },
     {
       id: 'home-goals',
-      name: 'The Home Goals Circle',
       goal: 3200,
       capacity: 6,
       members: ['Dana', 'Bader', 'Lulwa', 'Mishari', 'Hessa'],
       startDate: start(1),
-      description: 'Six participants building toward home projects together.',
     },
     {
       id: 'family-travel',
-      name: 'Family Travel Circle',
       goal: 5000,
       capacity: 6,
       members: ['Yousef', 'Maryam', 'Hamad', 'Reem', 'Faisal'],
       startDate: start(2),
-      description: 'A larger goal with a little more time before the first month.',
     },
     {
       id: 'office-savings',
-      name: 'Office Savings Circle',
       goal: 7000,
       capacity: 7,
       members: ['Khalid', 'Noor', 'Yousef', 'Maryam', 'Hamad', 'Sara'],
       startDate: start(2),
-      description: 'A seven-person rotation with one place still open.',
     },
   ];
 }

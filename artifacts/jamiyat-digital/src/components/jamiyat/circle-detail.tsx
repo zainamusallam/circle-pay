@@ -123,8 +123,6 @@ export function CircleDetail({ circle, api, onBack }: Props) {
 
       <div className="rise rounded-2xl border bg-card px-5 py-4"><AutoDebitToggle circle={circle} onToggle={api.toggleAutoDebit} /></div>
 
-      <FundingHistoryPanel circle={circle} api={api} />
-
       <section className="rise" style={{ animationDelay: '80ms' }}>
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div>
@@ -196,6 +194,8 @@ export function CircleDetail({ circle, api, onBack }: Props) {
           })}
         </ol>
       </section>
+
+      <FundingHistoryPanel circle={circle} api={api} />
 
       <div className="flex flex-col items-end gap-1">
         {hasHeldFunds(circle) && <p className="max-w-sm text-right text-xs text-muted-foreground" data-testid="text-delete-blocked">Deletion is locked while the vault holds participant funds. Release held funds first by completing the demo transfer.</p>}

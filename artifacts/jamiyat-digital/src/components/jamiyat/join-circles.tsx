@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { fmtKWD } from '@/lib/circles';
 import { findSimilarCircles, getDiscoverableCircles, type DiscoverableCircle } from '@/lib/discover-circles';
 
-export function JoinCircles({ onBack, onJoin, joinedNames }: {
+export function JoinCircles({ onBack, onRequest, onCancelRequest, requestedIds }: {
   onBack: () => void;
-  onJoin: (circle: DiscoverableCircle) => void;
-  joinedNames: string[];
+  onRequest: (circle: DiscoverableCircle, label: string) => void;
+  onCancelRequest: (circle: DiscoverableCircle, label: string) => void;
+  requestedIds: string[];
 }) {
   const [goal, setGoal] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -16,12 +17,8 @@ export function JoinCircles({ onBack, onJoin, joinedNames }: {
   const results = findSimilarCircles(listings, {
     goal: goal.trim() ? Number(goal) : undefined,
     startDate: startDate || undefined,
-  }).filter((circle) => !joinedNames.includes(circle.name));
+  });
   const hasSearch = goal.trim().length > 0 || startDate.length > 0;
-
-  const join = (circle: DiscoverableCircle) => {
-    onJoin(circle);
-  };
 
   return (
     <div className="space-y-7">
@@ -31,7 +28,7 @@ export function JoinCircles({ onBack, onJoin, joinedNames }: {
         </button>
         <p className="text-sm font-semibold text-tertiary">Find your people</p>
         <h1 className="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl">Join a circle</h1>
-        <p className="mt-2 max-w-xl text-muted-foreground">Find a demo circle with a savings goal and start date that work for you.</p>
+        <p className="mt-2 max-w-xl text-muted-foreground">Find a demo circle with a savings goal and start date that work for you. Requests stay pending here and don’t add a circle yet.</p>
       </header>
 
       <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6" aria-label="Search circles">
@@ -103,12 +100,16 @@ export function JoinCircles({ onBack, onJoin, joinedNames }: {
             <span className="text-xs text-muted-foreground">Demo listings · no real participants</span>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            {results.map((circle, index) => (
+            {results.map((circle, index) => {
+              const number = listings.findIndex((listing) => listing.id === circle.id) + 1;
+              const label = `Open Circle ${String(number).padStart(2, '0')}`;
+              const requested = requestedIds.includes(circle.id);
+              return (
               <article key={circle.id} style={{ animationDelay: `${index * 50}ms` }} className="rise rounded-2xl border bg-card p-5 transition-shadow hover:shadow-md" data-testid={`discover-circle-${circle.id}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="truncate font-bold tracking-tight">{circle.name}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{circle.description}</p>
+                    <h3 className="truncate font-bold tracking-tight">{label}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Demo rotation with one place available.</p>
                   </div>
                   {circle.similarity !== null && (
                     <span className="shrink-0 rounded-full bg-tertiary/10 px-2.5 py-1 text-xs font-bold text-tertiary" data-testid={`text-match-${circle.id}`}>
@@ -136,12 +137,20 @@ export function JoinCircles({ onBack, onJoin, joinedNames }: {
                   <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                     <UsersRound className="h-4 w-4" aria-hidden /> {circle.members.length} of {circle.capacity} members
                   </span>
-                  <Button type="button" onClick={() => join(circle)} className="h-10 rounded-xl bg-tertiary text-tertiary-foreground hover:bg-tertiary/90" data-testid={`button-join-${circle.id}`}>
-                    Join circle <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
-                  </Button>
+                  {requested ? (
+                    <div className="flex items-center gap-2" role="status" data-testid={`status-request-${circle.id}`}>
+                      <span className="rounded-full bg-tertiary/10 px-3 py-1.5 text-xs font-semibold text-tertiary">Request pending</span>
+                      <Button type="button" variant="ghost" onClick={() => onCancelRequest(circle, label)} className="h-9 rounded-xl text-muted-foreground" data-testid={`button-cancel-request-${circle.id}`}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <Button type="button" onClick={() => onRequest(circle, label)} className="h-10 rounded-xl bg-tertiary text-tertiary-foreground hover:bg-tertiary/90" data-testid={`button-request-${circle.id}`}>
+                      Request to join <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
+                    </Button>
+                  )}
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
