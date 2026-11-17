@@ -1,1 +1,1 @@
-- [Circle Pay demo decisions](funding-demo.md) — simulated funding, equal goal splits, private-code joins with anonymous sessions, phone usability, and ask before pushing.
+- [Circle Pay demo decisions](funding-demo.md) — simulated funding, equal goal splits, Supabase sign-in and sync, private-code joins, phone usability, and ask before pushing.

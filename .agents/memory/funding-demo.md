@@ -51,6 +51,12 @@ Private-circle creators should not type participant names. They share an invite 
 
 **How to apply:** Keep creator setup focused on circle details and participant count. Use Supabase email/password accounts, not automatic anonymous sign-ins, and preserve account isolation when importing older browser demo data.
 
+Supabase rejects reserved `example.com` email addresses during public sign-up in this project.
+
+**Why:** Browser verification hit provider email validation before the confirmation step; this was not an API-key or frontend failure.
+
+**How to apply:** Use an isolated, confirmed synthetic test fixture for sign-in and persistence checks, then remove it. Do not weaken email confirmation or send test emails to real people.
+
 The web app must be usable on phone screens as well as laptops.
 
 **Why:** The user explicitly asked for phone support, not just a laptop layout.
