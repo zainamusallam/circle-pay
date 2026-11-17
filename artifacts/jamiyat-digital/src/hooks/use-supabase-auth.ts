@@ -22,10 +22,10 @@ export function useSupabaseAuth() {
     setError(null);
     const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
       if (!active) return;
-      if (session?.user) {
+      if (session?.user && !session.user.is_anonymous) {
         setUser(session.user);
         setError(null);
-      } else if (event === 'SIGNED_OUT') {
+      } else {
         setUser(null);
       }
     });
@@ -33,22 +33,16 @@ export function useSupabaseAuth() {
     const initialize = async () => {
       const { data, error: sessionError } = await client.auth.getSession();
       if (sessionError) throw sessionError;
-      if (data.session?.user) {
+      if (data.session?.user && !data.session.user.is_anonymous) {
         if (active) setUser(data.session.user);
-        return;
       }
-
-      const { data: anonymousData, error: anonymousError } = await client.auth.signInAnonymously();
-      if (anonymousError) throw anonymousError;
-      if (!anonymousData.session?.user) throw new Error('Circle Pay could not start a demo session.');
-      if (active) setUser(anonymousData.session.user);
     };
 
     void initialize()
       .catch((authError) => {
         if (!active) return;
         setUser(null);
-        setError(authError instanceof Error ? authError.message : 'Could not start a demo session.');
+        setError(authError instanceof Error ? authError.message : 'Could not restore your session.');
       })
       .finally(() => {
         if (active) setLoading(false);

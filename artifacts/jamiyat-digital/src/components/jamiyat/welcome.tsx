@@ -37,7 +37,7 @@ export function Welcome({ onEnter }: { onEnter: () => void }) {
         >
           Enter Circle Pay <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" aria-hidden />
         </button>
-        <p className="rise mt-6 text-xs text-muted-foreground" style={{ animationDelay: '320ms' }}>No login needed. Demo data stays in this browser; balances are simulated.</p>
+        <p className="rise mt-6 text-xs text-muted-foreground" style={{ animationDelay: '320ms' }}>Sign in to save your circles. Demo balances and payments are simulated.</p>
       </div>
     </main>
   );

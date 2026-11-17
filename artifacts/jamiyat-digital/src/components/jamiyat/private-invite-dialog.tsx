@@ -14,7 +14,7 @@ export function PrivateInviteDialog({ circle, onClose }: { circle: Circle | null
     if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
-      toast({ title: 'Invite code copied', description: 'This code only works in the browser where the circle was created.' });
+      toast({ title: 'Invite code copied', description: 'Participants can sign in and enter this code in Join a circle.' });
     } catch {
       toast({ title: 'Copy the code shown below', description: code });
     }
@@ -22,13 +22,13 @@ export function PrivateInviteDialog({ circle, onClose }: { circle: Circle | null
 
   const shareInvite = async () => {
     if (!circle || !code) return;
-    const text = `Join ${circle.name} on Circle Pay with code ${code}. This demo code only works in the browser where the circle was created.`;
+    const text = `Join ${circle.name} on Circle Pay with code ${code}. Sign in, then open Join a circle and enter this code.`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Circle Pay invite', text });
       } else {
         await navigator.clipboard.writeText(text);
-        toast({ title: 'Invite details copied', description: 'The code is limited to this browser while cloud storage is off.' });
+        toast({ title: 'Invite details copied', description: 'Share the code with your participants.' });
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
@@ -45,7 +45,7 @@ export function PrivateInviteDialog({ circle, onClose }: { circle: Circle | null
           </div>
           <DialogTitle className="text-xl">Your circle is ready to invite</DialogTitle>
           <DialogDescription>
-            You can share this code, but circles are saved only in this browser while cloud storage is off.
+            Share this code with your participants. Each person signs in and adds their own name.
           </DialogDescription>
         </DialogHeader>
         <div className="rounded-2xl border bg-muted/40 p-4 text-center">
@@ -61,7 +61,7 @@ export function PrivateInviteDialog({ circle, onClose }: { circle: Circle | null
             <Share2 className="mr-2 h-4 w-4" /> Share invite
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">Invite codes from this browser won’t be available on another phone or computer until cloud sharing is restored.</p>
+        <p className="text-xs text-muted-foreground">Participants can use this code from their own phone or computer. All balances and payments are simulated.</p>
       </DialogContent>
     </Dialog>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FundingState } from '@/lib/funding';
 import type { PublicCircle } from '@/lib/public-circles';
 import { supabase } from '@/lib/supabase';
@@ -12,6 +12,7 @@ export function useNormalizedStateSync(
 ) {
   const [error, setError] = useState<string | null>(null);
   const [synced, setSynced] = useState(false);
+  const writes = useRef(Promise.resolve());
 
   useEffect(() => {
     if (!userId || !supabase || !enabled) {
@@ -24,11 +25,12 @@ export function useNormalizedStateSync(
     setSynced(false);
     setError(null);
     const timer = window.setTimeout(() => {
-      void client.rpc('sync_circle_pay_normalized_state', {
-        p_funding: funding,
-        p_public_circles: publicCircles,
-        p_join_requests: joinRequests,
-      }).then(({ error: syncError }) => {
+      writes.current = writes.current.catch(() => {}).then(async () => {
+        const { error: syncError } = await client.rpc('sync_circle_pay_normalized_state', {
+          p_funding: funding,
+          p_public_circles: publicCircles,
+          p_join_requests: joinRequests,
+        });
         if (!active) return;
         setError(syncError?.message ?? null);
         setSynced(!syncError);

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useLocalState } from './use-local-state';
+import { useCloudState } from './use-cloud-state';
 import {
   addPublicCircleRequest,
   approvePublicCircleRequest,
@@ -28,8 +28,8 @@ function readLegacyPublicCircles(): unknown {
   }
 }
 
-export function usePublicCircles() {
-  const cloud = useLocalState('public_circles', EMPTY_PUBLIC_CIRCLES, isPublicCircles, readLegacyPublicCircles);
+export function usePublicCircles(userId: string | null) {
+  const cloud = useCloudState(userId, 'public_circles', EMPTY_PUBLIC_CIRCLES, isPublicCircles, readLegacyPublicCircles);
   const circles = cloud.state;
   const setCircles = cloud.setState;
 

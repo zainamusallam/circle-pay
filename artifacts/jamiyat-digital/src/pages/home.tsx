@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { CheckCircle2, CreditCard, LayoutGrid, Layers, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +18,10 @@ import { useJoinRequests } from '@/hooks/use-join-requests';
 import type { PublicCircle } from '@/lib/public-circles';
 import { PrivateInviteDialog } from '@/components/jamiyat/private-invite-dialog';
 import type { Circle } from '@/lib/circles';
+import { useSupabaseAuth } from '@/hooks/use-supabase-auth';
+import { useNormalizedStateSync } from '@/hooks/use-normalized-state-sync';
+import { AuthScreen } from '@/components/jamiyat/auth-screen';
+import { supabase } from '@/lib/supabase';
 
 type View = { kind: 'dashboard' } | { kind: 'circles' } | { kind: 'accounts' } | { kind: 'join' } | { kind: 'circle'; id: string };
 
@@ -34,14 +38,22 @@ function Logo({ onClick }: { onClick: () => void }) {
 }
 
 export default function Home() {
-  const api = useCircles();
-  const joinRequests = useJoinRequests();
-  const publicCircles = usePublicCircles();
+  const auth = useSupabaseAuth();
+  const userId = auth.user?.id ?? null;
+  const api = useCircles(userId);
+  const joinRequests = useJoinRequests(userId);
+  const publicCircles = usePublicCircles(userId);
+  const fundingState = useMemo(() => ({
+    circles: api.circles, wallets: api.wallets, transactions: api.transactions,
+    simulatedDate: api.simulatedDate, lastRun: api.lastRun,
+  }), [api.circles, api.wallets, api.transactions, api.simulatedDate, api.lastRun]);
+  const normalizedState = useNormalizedStateSync(userId, fundingState, publicCircles.circles, joinRequests.requestedIds,
+    Boolean(userId && api.synced && publicCircles.synced && joinRequests.synced));
   const { toast } = useToast();
   const [view, setView] = useState<View>({ kind: 'dashboard' });
   const [open, setOpen] = useState(false);
   const [createdPrivateCircle, setCreatedPrivateCircle] = useState<Circle | null>(null);
-  const [entered, setEntered] = useState(false);
+  const [entered, setEntered] = useState(() => new URLSearchParams(window.location.search).get('view') === 'signin');
   const [inviteOnEntry] = useState(() => new URLSearchParams(window.location.search).has('invite'));
 
   const go = (v: View) => { setView(v); window.scrollTo({ top: 0, behavior: 'smooth' }); };
@@ -104,9 +116,24 @@ export default function Home() {
 
   const toWelcome = () => { setOpen(false); setEntered(false); window.scrollTo({ top: 0 }); };
   if (!entered) return <Welcome onEnter={() => { setEntered(true); setView(inviteOnEntry ? { kind: 'join' } : { kind: 'dashboard' }); window.scrollTo({ top: 0 }); }} />;
-  if (api.loading || publicCircles.loading || joinRequests.loading) {
+  if (!auth.loading && !auth.user) return <AuthScreen onBack={toWelcome} sessionError={auth.error} />;
+  if (auth.loading || api.loading || publicCircles.loading || joinRequests.loading) {
     return <main className="flex min-h-[100dvh] items-center justify-center bg-background px-4"><p role="status" className="rounded-2xl border bg-card px-5 py-4 text-sm font-semibold text-muted-foreground">Loading your saved demo…</p></main>;
   }
+  const signOut = async () => {
+    if (!api.synced || !publicCircles.synced || !joinRequests.synced || !normalizedState.synced) {
+      toast({ title: 'Please wait for your data to save', description: 'Wait for the Supabase saved status before signing out.', variant: 'destructive' });
+      return;
+    }
+    const result = await supabase?.auth.signOut();
+    if (result?.error) {
+      toast({ title: 'Could not sign out', description: result.error.message, variant: 'destructive' });
+      return;
+    }
+    setOpen(false);
+    setCreatedPrivateCircle(null);
+    go({ kind: 'dashboard' });
+  };
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -142,6 +169,7 @@ export default function Home() {
             </div>
           </div>
           <DemoPill />
+          <button onClick={() => { void signOut(); }} className="min-h-11 text-left text-xs font-semibold text-muted-foreground hover:text-foreground" data-testid="button-sign-out">Sign out</button>
           <button onClick={resetDemo} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground" data-testid="button-reset-demo">
             <RotateCcw className="h-3 w-3" /> Reset demo data
           </button>
@@ -152,6 +180,7 @@ export default function Home() {
       <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/85 px-4 py-3 backdrop-blur lg:hidden">
         <Logo onClick={toWelcome} />
         <div className="flex items-center gap-1">
+          <button onClick={() => { void signOut(); }} className="min-h-11 px-2 text-xs font-semibold text-muted-foreground" data-testid="button-sign-out-mobile">Sign out</button>
           <button onClick={resetDemo} aria-label="Reset demo data" className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted" data-testid="button-reset-demo-mobile"><RotateCcw className="h-4 w-4" /></button>
           <Button size="sm" onClick={() => setOpen(true)} className="h-11 rounded-xl" data-testid="button-new-circle-mobile"><Plus className="mr-1 h-4 w-4" /> New</Button>
         </div>
@@ -160,16 +189,16 @@ export default function Home() {
       <main className="px-4 pb-28 pt-6 sm:px-6 lg:ml-64 lg:px-10 lg:pb-12 lg:pt-10">
         <div className="mx-auto max-w-5xl">
           <div className="mb-5 lg:hidden"><DemoPill /></div>
-          {!api.storageError && !publicCircles.error && !joinRequests.error && (
+          {!api.storageError && !publicCircles.error && !joinRequests.error && !normalizedState.error && (
             <p role="status" className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary" data-testid="status-local-storage">
-              {api.synced && publicCircles.synced && joinRequests.synced
-                ? <><CheckCircle2 className="h-3.5 w-3.5" /> Demo data saved on this device</>
-                : <>Saving demo data on this device…</>}
+              {api.synced && publicCircles.synced && joinRequests.synced && normalizedState.synced
+                ? <><CheckCircle2 className="h-3.5 w-3.5" /> Demo data saved to Supabase</>
+                : <>Saving demo data to Supabase…</>}
             </p>
           )}
-          {(api.storageError || publicCircles.error || joinRequests.error) && (
+          {(api.storageError || publicCircles.error || joinRequests.error || normalizedState.error) && (
             <div role="alert" className="mb-5 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-testid="text-storage-error">
-              Some demo data could not be saved in this browser. {api.storageMessage || publicCircles.error || joinRequests.error}
+              Some demo data could not sync to Supabase. {api.storageMessage || publicCircles.error || joinRequests.error || normalizedState.error}
             </div>
           )}
           {view.kind === 'dashboard' && (
