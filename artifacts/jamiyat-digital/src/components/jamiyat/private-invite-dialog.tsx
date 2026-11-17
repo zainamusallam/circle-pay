@@ -10,19 +10,11 @@ export function PrivateInviteDialog({ circle, onClose }: { circle: Circle | null
   const { toast } = useToast();
   const code = circle?.inviteCode;
 
-  const getInviteUrl = () => {
-    const url = new URL(window.location.href);
-    url.search = '';
-    url.hash = '';
-    url.searchParams.set('invite', code ?? '');
-    return url.toString();
-  };
-
   const copyCode = async () => {
     if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
-      toast({ title: 'Invite code copied', description: 'Send it to your participants so they can join.' });
+      toast({ title: 'Invite code copied', description: 'This code only works in the browser where the circle was created.' });
     } catch {
       toast({ title: 'Copy the code shown below', description: code });
     }
@@ -30,18 +22,17 @@ export function PrivateInviteDialog({ circle, onClose }: { circle: Circle | null
 
   const shareInvite = async () => {
     if (!circle || !code) return;
-    const url = getInviteUrl();
-    const text = `Join ${circle.name} on Circle Pay with code ${code}.`;
+    const text = `Join ${circle.name} on Circle Pay with code ${code}. This demo code only works in the browser where the circle was created.`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Circle Pay invite', text, url });
+        await navigator.share({ title: 'Circle Pay invite', text });
       } else {
-        await navigator.clipboard.writeText(`${text}\n${url}`);
-        toast({ title: 'Invite link copied', description: 'Share it with your participants.' });
+        await navigator.clipboard.writeText(text);
+        toast({ title: 'Invite details copied', description: 'The code is limited to this browser while cloud storage is off.' });
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
-      toast({ title: 'Could not share the link', description: `You can still share code ${code}.` });
+      toast({ title: 'Could not share the invite', description: `You can still share code ${code}.` });
     }
   };
 
@@ -54,7 +45,7 @@ export function PrivateInviteDialog({ circle, onClose }: { circle: Circle | null
           </div>
           <DialogTitle className="text-xl">Your circle is ready to invite</DialogTitle>
           <DialogDescription>
-            Share this code with each participant. They join from Circle Pay and enter their own name.
+            You can share this code, but circles are saved only in this browser while cloud storage is off.
           </DialogDescription>
         </DialogHeader>
         <div className="rounded-2xl border bg-muted/40 p-4 text-center">
@@ -70,7 +61,7 @@ export function PrivateInviteDialog({ circle, onClose }: { circle: Circle | null
             <Share2 className="mr-2 h-4 w-4" /> Share invite
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">If a link won’t open, participants can choose Join a circle and enter the code manually.</p>
+        <p className="text-xs text-muted-foreground">Invite codes from this browser won’t be available on another phone or computer until cloud sharing is restored.</p>
       </DialogContent>
     </Dialog>
   );

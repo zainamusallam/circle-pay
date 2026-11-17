@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useCloudState } from './use-cloud-state';
+import { useLocalState } from './use-local-state';
 
 const EMPTY_REQUESTS: string[] = [];
 const isStringArray = (value: unknown): value is string[] =>
@@ -14,8 +14,8 @@ function readLegacyJoinRequests(): unknown {
   }
 }
 
-export function useJoinRequests(userId: string | null) {
-  const cloud = useCloudState(userId, 'join_requests', EMPTY_REQUESTS, isStringArray, readLegacyJoinRequests);
+export function useJoinRequests() {
+  const cloud = useLocalState('join_requests', EMPTY_REQUESTS, isStringArray, readLegacyJoinRequests);
   const requestedIds = cloud.state;
   const setRequestedIds = cloud.setState;
 

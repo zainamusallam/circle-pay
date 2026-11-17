@@ -62,12 +62,12 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, onJoinInvite, 
       <form onSubmit={submitInvite} className="rounded-3xl border border-primary/15 bg-accent/40 p-5 sm:p-6" aria-label="Join by private invite">
         <div className="mb-4">
           <h2 className="font-bold">Have a private invite?</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Enter the code from your circle owner, or paste the full invite link. You add your own name—no member list for the creator to fill in.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Enter a code for a circle saved in this browser. You add your own name—no member list for the creator to fill in.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label className="block space-y-1.5">
             <span className="text-sm font-semibold">Invite code</span>
-            <input value={inviteCode} onChange={(event) => { setInviteCode(event.target.value.toUpperCase()); setInviteError(''); }} placeholder="CP-ABC123 or paste link" autoCapitalize="characters" className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="input-invite-code" />
+            <input value={inviteCode} onChange={(event) => { setInviteCode(event.target.value.toUpperCase()); setInviteError(''); }} placeholder="CP-ABC123" autoCapitalize="characters" className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="input-invite-code" />
           </label>
           <label className="block space-y-1.5">
             <span className="text-sm font-semibold">Your name</span>
@@ -78,7 +78,7 @@ export function JoinCircles({ onBack, onRequest, onCancelRequest, onJoinInvite, 
           </Button>
         </div>
         {inviteError && <p role="alert" className="mt-2 text-sm font-medium text-destructive" data-testid="text-invite-error">{inviteError}</p>}
-        <p className="mt-3 text-xs text-muted-foreground">The circle and invite code sync through Supabase. Contributions and balances remain simulated—no real money moves.</p>
+        <p className="mt-3 text-xs text-muted-foreground">Circles are saved only in this browser. Codes created on another device won’t work while cloud sharing is off. No real money moves.</p>
       </form>
 
       <section className="rounded-3xl border bg-card p-5 shadow-sm sm:p-6" aria-label="Search circles">

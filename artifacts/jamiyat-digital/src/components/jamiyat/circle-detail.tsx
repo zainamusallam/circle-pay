@@ -128,30 +128,16 @@ export function CircleDetail({ circle, api, onBack }: Props) {
         <section className="rise flex flex-col gap-4 rounded-2xl border border-tertiary/20 bg-tertiary/5 p-5 sm:flex-row sm:items-center sm:justify-between" data-testid="section-private-invite">
           <div>
             <h2 className="font-bold">Invite participants</h2>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">Share this code or link. Each participant enters their own name when joining; you don’t need to type names for them.</p>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">Participants can enter their own names. While cloud storage is off, this code only works in the browser where the circle was created.</p>
             <p className="mt-1 text-sm font-semibold text-foreground">{openSpots} of {n} invite spots still open</p>
             <p className="mt-2 font-mono text-lg font-bold tracking-wider text-foreground" data-testid="text-private-invite-code">{circle.inviteCode}</p>
-            <p className="mt-1 text-xs text-muted-foreground">If the link won’t open, choose Join a circle and enter this code—or paste the full link in the code field.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Other devices can’t find this circle until cloud sharing is restored.</p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={async () => {
-              const inviteUrl = new URL(window.location.href);
-              inviteUrl.search = '';
-              inviteUrl.hash = '';
-              inviteUrl.searchParams.set('invite', circle.inviteCode!);
-              try {
-                await navigator.clipboard.writeText(inviteUrl.toString());
-                toast({ title: 'Invite link copied', description: 'Participants can open it or paste it into the invite-code field.' });
-              } catch {
-                toast({ title: 'Link could not be copied', description: `Use the code instead: ${circle.inviteCode}` });
-              }
-            }} data-testid="button-copy-invite-link">
-              <Copy className="mr-2 h-4 w-4" /> Copy link
-            </Button>
             <Button type="button" variant="secondary" className="h-11 rounded-xl" onClick={async () => {
               try {
                 await navigator.clipboard.writeText(circle.inviteCode!);
-                toast({ title: 'Invite code copied', description: 'Participants can enter it under Join a circle.' });
+                toast({ title: 'Invite code copied', description: 'It can be used in this browser while cloud sharing is paused.' });
               } catch {
                 toast({ title: 'Copy the code shown above', description: circle.inviteCode });
               }
